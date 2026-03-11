@@ -37,24 +37,31 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <h2 style={{ marginTop: 0, marginBottom: '2rem', fontSize: '2rem', letterSpacing: '-1px', fontWeight: 700 }}>Operator Overview</h2>
-      <div className="dashboard-section">
-        <div className="dashboard-maincol">
+      <div className="trading-terminal-grid" style={{
+        display: 'grid',
+        gridTemplateColumns: '2fr 340px',
+        gap: '32px',
+        width: '100%',
+        margin: 0
+      }}>
+        {/* Main Center Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <ChartPanel />
           <StatusCard {...(status||{})} />
           <PortfolioSummary {...(portfolio||{})} />
-          <div className="ui-card">
+          <div className="ui-card" style={{marginTop:8}}>
             <PositionTable positions={positions} />
           </div>
-        </div>
-        <div className="dashboard-sidecol">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ marginBottom: 8 }}>
-              <ChartPanel />
-            </div>
-            <div>
-              <OrderBookStub />
-              <TradeFlowStub />
-            </div>
+          <div style={{marginTop:16}}>
             <AlertPanel />
+          </div>
+        </div>
+
+        {/* Right Column: Order book/trade flow */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <OrderBookStub />
+            <TradeFlowStub />
           </div>
         </div>
       </div>

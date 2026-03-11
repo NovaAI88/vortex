@@ -5,14 +5,14 @@ import TickerTape from './TickerTape';
 import CommandPaletteStub from './CommandPaletteStub';
 
 const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div>
+  <div style={{ background: '#111728', minHeight: '100vh' }}>
     <BrandHeader />
-    <TickerTape />
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div style={{ boxShadow: '0 2px 16px #0002', position:'relative', zIndex:10 }}> <TickerTape /> </div>
+    <div className="app-shell" style={{ display:'flex', flexDirection:'row', minHeight:'80vh' }}>
+      <aside className="sidebar" style={{ width: 220, background:'#182034', minHeight: '100%' }}>
         <SidebarNav />
       </aside>
-      <div className="main-container">
+      <div className="main-container" style={{ flex: 1, padding:'32px 40px 32px 40px' }}>
         {children}
       </div>
     </div>
