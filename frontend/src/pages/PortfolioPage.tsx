@@ -4,10 +4,26 @@ import { fetchPortfolio } from '../api/apiClient';
 
 const PortfolioPage: React.FC = () => {
   const [portfolio, setPortfolio] = useState<any>(null);
-  const [error, setError] = useState(null);
-  useEffect(() => { fetchPortfolio().then(setPortfolio).catch(setError); }, []);
-  if(error) return <div>Error: {String(error)}</div>;
-  if(!portfolio) return <div>Loading...</div>;
-  return <PortfolioSummary portfolio={portfolio} />;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchPortfolio()
+      .then(setPortfolio)
+      .catch((err) => setError(String(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div>Loading portfolio...</div>;
+  if (error) return <div style={{color:'red'}}>Error: {error}</div>;
+
+  return (
+    <>
+      <PortfolioSummary {...(portfolio || {})} />
+      {!portfolio && <div>No portfolio data available.</div>}
+    </>
+  );
 };
+
 export default PortfolioPage;

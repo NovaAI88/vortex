@@ -1,13 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import PositionTable from '../components/PositionTable';
-import { fetchPosition } from '../api/apiClient';
+import { fetchPositions } from '../api/apiClient';
 
 const PositionPage: React.FC = () => {
-  const [position, setPosition] = useState<any>(null);
-  const [error, setError] = useState(null);
-  useEffect(() => { fetchPosition().then(setPosition).catch(setError); }, []);
-  if(error) return <div>Error: {String(error)}</div>;
-  if(!position) return <div>Loading...</div>;
-  return <PositionTable position={position} />;
+  const [positions, setPositions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchPositions()
+      .then((resp) => setPositions(resp || []))
+      .catch((err) => setError(String(err)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div>Loading positions...</div>;
+  if (error) return <div style={{color:'red'}}>Error: {error}</div>;
+
+  return <PositionTable positions={positions} />;
 };
+
 export default PositionPage;

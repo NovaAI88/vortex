@@ -1,12 +1,19 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import BrandHeader from './BrandHeader';
+import SidebarNav from './SidebarNav';
 
 const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div>
-    <nav style={{ marginBottom: 16 }}>
-      <Link to='/'>Dashboard</Link> | <Link to='/status'>Status</Link> | <Link to='/position'>Position</Link> | <Link to='/portfolio'>Portfolio</Link>
-    </nav>
-    <main>{children}</main>
+    <BrandHeader />
+    <div className="app-shell">
+      <aside className="sidebar">
+        <SidebarNav />
+      </aside>
+      <div className="main-container">
+        {children}
+      </div>
+    </div>
   </div>
 );
+
 export default PageLayout;

@@ -1,17 +1,43 @@
 import React from 'react';
 
-const PositionTable: React.FC<{ position: any }> = ({ position }) => (
-  <table border="1" style={{margin:16}}>
-    <thead><tr><th>Symbol</th><th>Qty</th><th>Side</th><th>Last ExecId</th><th>Timestamp</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>{position.symbol}</td>
-        <td>{position.qty}</td>
-        <td>{position.side}</td>
-        <td>{position.sourceExecutionResultId}</td>
-        <td>{position.timestamp}</td>
-      </tr>
-    </tbody>
-  </table>
+type Position = {
+  id: string;
+  symbol: string;
+  qty: number;
+  entryPrice: number;
+  [key: string]: any;
+};
+
+type PositionTableProps = {
+  positions: Position[];
+};
+
+const PositionTable: React.FC<PositionTableProps> = ({ positions }) => (
+  <div style={{ border: '1px solid #eee', borderRadius: 6, padding: '1rem', background: '#f4f8ff' }}>
+    <h2>Positions</h2>
+    {positions.length === 0 ? (
+      <p style={{ color: '#888' }}>No positions open.</p>
+    ) : (
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>Symbol</th>
+            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'right' }}>Quantity</th>
+            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'right' }}>Entry Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          {positions.map(pos => (
+            <tr key={pos.id || pos.symbol}>
+              <td>{pos.symbol}</td>
+              <td style={{ textAlign: 'right' }}>{pos.qty}</td>
+              <td style={{ textAlign: 'right' }}>${pos.entryPrice.toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    )}
+  </div>
 );
+
 export default PositionTable;

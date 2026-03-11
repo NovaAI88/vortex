@@ -1,12 +1,19 @@
 import React from 'react';
 
-const PortfolioSummary: React.FC<{ portfolio: any }> = ({ portfolio }) => (
-  <div style={{border:'1px solid #ddd', borderRadius:8, padding:16, margin:16}}>
-    <h2>Portfolio Snapshot</h2>
-    <div><b>Equity:</b> {portfolio.equity}</div>
-    <div><b>Open Positions:</b> {portfolio.openPositions?.join(', ')}</div>
-    <div><b>Last Exec Result:</b> {portfolio.lastExecutionResultId}</div>
-    <div><b>Timestamp:</b> {portfolio.timestamp}</div>
+type PortfolioSummaryProps = {
+  totalValue?: number;
+  [key: string]: any;
+};
+
+const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ totalValue, ...rest }) => (
+  <div style={{ border: '1px solid #e0e0e0', borderRadius: 6, padding: '1rem', marginBottom: '1rem', background: '#f6f8fa' }}>
+    <h2>Portfolio</h2>
+    <p><b>Total Value:</b> {totalValue != null ? `$${totalValue.toLocaleString()}` : 'N/A'}</p>
+    {/* Render other portfolio fields if they exist */}
+    {Object.entries(rest).map(([key, value]) => (
+      <p key={key}><b>{key}:</b> {value as string}</p>
+    ))}
   </div>
 );
+
 export default PortfolioSummary;

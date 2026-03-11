@@ -1,0 +1,193 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #171b22;
+  color: #e8ecf1;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+  background: #171b22;
+}
+
+a {
+  color: #7f93f8;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+a:hover {
+  color: #ffffff;
+}
+h1, h2, h3 {
+  font-weight: 600;
+  color: #f4f6fa;
+  letter-spacing: -0.5px;
+}
+
+/* Brand header */
+.aether-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: #191e27;
+  padding: 1.75rem 2rem 1.25rem 2rem;
+  border-bottom: 1px solid #20242e;
+}
+.aether-logo {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #303d59 60%, #7f93f8 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px #202b4060;
+}
+.aether-logo svg {
+  height: 26px; width: 26px; display: block;
+  filter: drop-shadow(0 1px 4px #2a395b90);
+}
+.aether-brand-title {
+  font-size: 2.1rem;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  font-weight: 800;
+  color: #aeb8d0;
+  letter-spacing: -2px;
+  margin: 0;
+  line-height: 1;
+}
+
+/* Sidebar nav */
+.app-shell {
+  display: flex;
+}
+.sidebar {
+  width: 210px;
+  background: #191e27;
+  min-height: 100vh;
+  border-right: 1px solid #23293b;
+  padding: 2.5rem 1rem 1.5rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.sidebar-link {
+  position: relative;
+  padding: 0.55rem 0.8rem 0.55rem 1.1rem;
+  border-radius: 8px;
+  color: #b9c6de;
+  font-size: 1.1rem;
+  font-weight: 500;
+  transition: background .12s, color .13s;
+  margin-right: 0.5rem;
+}
+.sidebar-link.active,
+.sidebar-link:hover {
+  background: linear-gradient(90deg, #262e40 70%, #303d59 100%);
+  color: #7f93f8;
+}
+.sidebar-section {
+  color: #6c7ca2;
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+}
+
+.main-container {
+  flex: 1 1 0;
+  padding: 2.8rem 2.5rem;
+  min-height: 100vh;
+}
+
+/* Cards, blocks, table/panels */
+.ui-card {
+  background: #252b3c;
+  border-radius: 14px;
+  padding: 2rem 2rem 1.6rem 2rem;
+  box-shadow: 0 2px 16px #00000022;
+  margin-bottom: 2rem;
+  border: 1.5px solid #22273b;
+}
+.ui-card-empty {
+  background: #23273a;
+  color: #79859e!important;
+  border: 1.5px dashed #28304a;
+}
+
+.dashboard-section {
+  display: flex;
+  gap: 2.4rem;
+  flex-wrap: wrap;
+  margin-top: 2.6rem;
+}
+.dashboard-maincol {
+  flex: 2 1 350px;
+  min-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+.dashboard-sidecol {
+  flex: 1 0 260px;
+  min-width: 238px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Data Table */
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  background: none;
+}
+.data-table th, .data-table td {
+  padding: 0.85rem 0.6rem;
+  text-align: left;
+}
+.data-table th {
+  color: #7380a2;
+  font-size: 1.01rem;
+  border-bottom: 1.5px solid #232e41;
+  font-weight: 600;
+}
+.data-table td {
+  border-bottom: 1px solid #23293d;
+  font-size: 1.03rem;
+}
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.activity-section {
+  background: #23273a;
+  border-radius: 10px;
+  padding: 1.5rem 1.3rem 1rem 1.3rem;
+  margin-top: 2rem;
+  border: 1px solid #22273b;
+}
+
+/* Responsive (basic) */
+@media (max-width: 900px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    flex-direction: row;
+    width: 100%;
+    min-height: 0;
+    border-right: none; border-bottom: 1px solid #252a39;
+    padding: 0 1rem 0 1.5rem;
+    gap: 1rem;
+  }
+  .main-container {
+    padding: 1.1rem 0.4rem;
+  }
+}
