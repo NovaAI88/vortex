@@ -1,28 +1,15 @@
-# Node.js dependencies
+# Node modules, build output
 node_modules/
-npm-debug.log*
-yarn-error.log*
-
-# Environment variables
-.env
-.env.*
-
-# Logs
-logs/
-*.log
-
-# OS / Editor
-.DS_Store
-.idea/
-.vscode/
-*.swp
-
-# Build output
 dist/
 build/
 coverage/
-*.tsbuildinfo
-
-# Docker
+*.log
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+.idea/
+.vscode/
+.env*
+*.swp
+*.tmp
 *.local
-docker-compose.override.yml

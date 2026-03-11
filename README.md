@@ -1,35 +1,20 @@
 # AETHER
 
-AETHER is a modular, production-grade platform for real-time trading intelligence, automation, and advanced system orchestration.
+AETHER is a modular trading intelligence and automation platform. See `OPERATOR.md` for full run instructions and MVP operator requirements.
 
-## Project Overview
-- **Backend:** API and data processing services
-- **Frontend:** Dashboard/UI for visualizing signals and managing actions
-- **AI:** Machine learning and signal-generation modules
-- **Infra:** Deployment, orchestration, and operational automation
+## Final Known Limitations (MVP)
 
-## Running AETHER
-To build and start all core services, run:
+- Test environment is not guaranteed: npm may not be available on all host systems. Run tests where possible/CI.
+- All portfolio/position state is in-memory only; state is lost on backend/container restart.
+- No live execution, all trading is simulated (paper trading only).
+- Paper trading validation is backend-only, no frontend UI for validation results is present.
+- Some CI/formatting/nit scripts may not run if dependencies are missing. Check OPERATOR.md for required versions.
 
-```
-docker compose up --build
-```
+## Usage (see OPERATOR.md for additional details)
 
-- **Frontend:** http://localhost:8080
-- **Backend:** http://localhost:3000
+- Start system: `docker compose up --build`
+- Manual backend test/validation: `cd backend && npm test [-- specific.test.ts]`
+- Manual frontend preview: `cd frontend && npm install && npm start`
 
-## Development Principles
-- Simplicity and clarity
-- Automation and reliability
-- Modular, scalable architecture
-- Professional documentation and disciplined operational habits
-
-## Directory Structure
-- `/backend` — API & core services
-- `/frontend` — Dashboard/UI
-- `/ai` — Trading intelligence modules & AI/ML
-- `/infra` — Infrastructure-as-code, automation, and ops
-- `/docs` — Project documentation
-
-## License
-[To be determined]
+## Docs
+- See /docs/*, /backend/README.md, /frontend/README.md for architecture, API, and pipeline specifics.
