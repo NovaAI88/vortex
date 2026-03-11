@@ -7,5 +7,7 @@ export const EVENT_TOPICS = {
   ORDER_REQUEST: 'order.request',
   RISK_DECISION: 'risk.decision',
   EXECUTION_RESULT: 'execution.result',
+  POSITION_SNAPSHOT: 'position.snapshot',
+  PORTFOLIO_SNAPSHOT: 'portfolio.snapshot',
 };
 // Add more topics as system evolves
