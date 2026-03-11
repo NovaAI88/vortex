@@ -6,13 +6,15 @@ type PortfolioSummaryProps = {
 };
 
 const PortfolioSummary: React.FC<PortfolioSummaryProps> = ({ totalValue, ...rest }) => (
-  <div style={{ border: '1px solid #e0e0e0', borderRadius: 6, padding: '1rem', marginBottom: '1rem', background: '#f6f8fa' }}>
-    <h2>Portfolio</h2>
-    <p><b>Total Value:</b> {totalValue != null ? `$${totalValue.toLocaleString()}` : 'N/A'}</p>
+  <div>
+    <div style={{fontSize:'1.08rem',color:'#b2bdd7',fontWeight:600,marginBottom:6}}>Balance Summary</div>
+    <div style={{fontSize:'2.0rem',fontWeight:700,color:'#7f93f8',marginBottom:'0.8rem'}}>{totalValue != null ? `$${totalValue.toLocaleString()}` : 'N/A'}</div>
     {/* Render other portfolio fields if they exist */}
-    {Object.entries(rest).map(([key, value]) => (
-      <p key={key}><b>{key}:</b> {value as string}</p>
-    ))}
+    <div style={{display:'flex',flexWrap:'wrap',gap:'1.4rem',color:'#97a0b8',fontSize:'1.01rem'}}>
+      {Object.entries(rest).map(([key, value]) => (
+        <div key={key}><b style={{color:'#8296c9'}}>{key}:</b> {value as string}</div>
+      ))}
+    </div>
   </div>
 );
 

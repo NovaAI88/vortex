@@ -1,22 +1,21 @@
 import React from 'react';
 
 type StatusCardProps = {
-  service: string;
-  status: string;
-  time: string;
+  service?: string;
+  status?: string;
+  time?: string;
   [key: string]: any;
 };
 
 const StatusCard: React.FC<StatusCardProps> = (props) => (
-  <div style={{ border: '1px solid #eee', borderRadius: 6, padding: '1rem', marginBottom: '1rem', background: props.status === 'OK' ? '#e6ffe6' : '#fffbe6' }}>
-    <h2>Status</h2>
-    <p><b>Service:</b> {props.service}</p>
-    <p><b>Status:</b> <span style={{ color: props.status === 'OK' ? 'green' : 'orange' }}>{props.status}</span></p>
-    <p><b>Timestamp:</b> {props.time}</p>
-    {/* Render any other fields present */}
+  <div>
+    <div style={{fontSize:'1.09rem',color:'#b2bdd7',fontWeight:600,marginBottom:5}}>Status Summary</div>
+    <div style={{fontWeight:700,color:props.status==='OK'? '#30e094':'#f9ad1a',fontSize:'1.35rem',marginBottom:'.92rem'}}>{props.status||'Unknown'}</div>
+    <div style={{fontSize:'0.98rem',color:'#a7b0bb'}}>Service: <b style={{color:'#7f93f8'}}>{props.service}</b></div>
+    <div style={{fontSize:'0.94rem',color:'#a7b0bb'}}>Timestamp: <span style={{color:'#97a0b8'}}>{props.time}</span></div>
     {Object.entries(props).map(([key, value]) => (
-      !['service', 'status', 'time'].includes(key) && (
-        <p key={key}><b>{key}:</b> {value as string}</p>
+      !['service', 'status', 'time'].includes(key) && value && (
+        <div style={{color:'#bac2ce',fontSize:'0.97rem'}} key={key}><b style={{color:'#8296c9'}}>{key}:</b> {value as string}</div>
       )
     ))}
   </div>

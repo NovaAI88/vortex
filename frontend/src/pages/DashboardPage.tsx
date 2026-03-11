@@ -28,14 +28,27 @@ const DashboardPage: React.FC = () => {
   }, []);
 
   if (loading) return <div>Loading dashboard...</div>;
-  if (error) return <div style={{color:'red'}}>Error: {error}</div>;
+  if (error) return <div style={{color:'#f95e5e',fontWeight:600}}>Error: {error}</div>;
 
   return (
     <div>
-      <h2 style={{ marginTop: 0 }}>Operator Overview</h2>
-      {status && <StatusCard {...status} />}
-      {portfolio && <PortfolioSummary {...portfolio} />}
-      <PositionTable positions={positions} />
+      <h2 style={{ marginTop: 0, marginBottom: '2rem', fontSize: '2rem', letterSpacing: '-1px', fontWeight: 700 }}>Operator Overview</h2>
+      <div className="dashboard-section">
+        <div className="dashboard-maincol">
+          <StatusCard {...(status||{})} />
+          <PortfolioSummary {...(portfolio||{})} />
+          <div className="ui-card">
+            <PositionTable positions={positions} />
+          </div>
+        </div>
+        <div className="dashboard-sidecol">
+          <div className="ui-card ui-card-empty" style={{minHeight:96}}>(Market/Chart section placeholder)</div>
+          <div className="activity-section">
+            <span style={{fontWeight:600,letterSpacing:'0.5px',fontSize:'1.06rem'}}>Activity & System Log</span>
+            <div style={{color:'#838fa4',margin:'0.5rem 0'}}>No recent activity.</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

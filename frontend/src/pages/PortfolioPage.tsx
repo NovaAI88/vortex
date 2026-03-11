@@ -15,14 +15,19 @@ const PortfolioPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div>Loading portfolio...</div>;
-  if (error) return <div style={{color:'red'}}>Error: {error}</div>;
-
   return (
-    <>
-      <PortfolioSummary {...(portfolio || {})} />
-      {!portfolio && <div>No portfolio data available.</div>}
-    </>
+    <div>
+      <h2 style={{marginTop:0, fontWeight:700, fontSize:'2rem',letterSpacing:'-1px'}}>Portfolio Overview</h2>
+      <div className="ui-card" style={{maxWidth:460}}>
+        {loading
+          ? 'Loading portfolio...'
+          : error
+          ? <div style={{color:'#f95e5e',fontWeight:600}}>Error: {error}</div>
+          : portfolio
+          ? <PortfolioSummary {...portfolio} />
+          : <div className="ui-card ui-card-empty">No portfolio data available.</div>}
+      </div>
+    </div>
   );
 };
 

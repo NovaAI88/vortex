@@ -13,17 +13,16 @@ type PositionTableProps = {
 };
 
 const PositionTable: React.FC<PositionTableProps> = ({ positions }) => (
-  <div style={{ border: '1px solid #eee', borderRadius: 6, padding: '1rem', background: '#f4f8ff' }}>
-    <h2>Positions</h2>
+  <div>
     {positions.length === 0 ? (
-      <p style={{ color: '#888' }}>No positions open.</p>
+      <div className="ui-card ui-card-empty">No positions open.</div>
     ) : (
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="data-table">
         <thead>
           <tr>
-            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'left' }}>Symbol</th>
-            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'right' }}>Quantity</th>
-            <th style={{ borderBottom: '1px solid #ccc', textAlign: 'right' }}>Entry Price</th>
+            <th>Symbol</th>
+            <th style={{textAlign:'right'}}>Quantity</th>
+            <th style={{textAlign:'right'}}>Entry Price</th>
           </tr>
         </thead>
         <tbody>
