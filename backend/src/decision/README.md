@@ -1,3 +1,13 @@
 # Decision Layer
 
-Strategies and rules which select and route ActionCandidates for possible execution. No direct risk or execution logic. Cannot bypass Risk/Execution.
+Responsibilities:
+- Subscribe to TradeSignal (event bus, intelligence.signal)
+- Apply minimal deterministic rules (basicSignalEvaluator) to create ActionCandidate intent
+- Publish ActionCandidate to event bus (decision.candidate)
+- Orchestration via decisionPipeline.ts only
+
+Strictly prohibited:
+- No risk, execution, order, or portfolio logic
+- No ML, no advanced/strategy logic
+- No direct output to risk/execution layers (must only use bus)
+- ActionCandidate = intent only (not an order or trade!)
