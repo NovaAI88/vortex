@@ -5,19 +5,22 @@ import TickerTape from './TickerTape';
 import CommandPaletteStub from './CommandPaletteStub';
 
 const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ background: '#111728', minHeight: '100vh' }}>
+  <div style={{ background: "#131a27", minHeight: "100vh", fontFamily: 'Inter, Segoe UI, Arial' }}>
     <BrandHeader />
-    <div style={{ boxShadow: '0 2px 16px #0002', position:'relative', zIndex:10 }}> <TickerTape /> </div>
-    <div className="app-shell" style={{ display:'flex', flexDirection:'row', minHeight:'80vh' }}>
-      <aside className="sidebar" style={{ width: 220, background:'#182034', minHeight: '100%' }}>
+    <div style={{ boxShadow: "0 1.5px 11px #03053d42", position:"relative", zIndex:15 }}>
+      <TickerTape />
+    </div>
+    <div style={{ display: "flex", flexDirection: "row", minHeight: "93vh" }}>
+      <aside style={{ width: 240, minHeight: "100%", boxShadow: "2px 0 18px #191e384a", background: "#171e2e" }}>
         <SidebarNav />
       </aside>
-      <div className="main-container" style={{ flex: 1, padding:'32px 40px 32px 40px' }}>
+      <main style={{ flex: 1, minHeight: "100%", padding: "38px 42px 30px 38px", background: "#151b2a" }}>
         {children}
-      </div>
+      </main>
     </div>
     <CommandPaletteStub />
   </div>
 );
+
 
 export default PageLayout;
