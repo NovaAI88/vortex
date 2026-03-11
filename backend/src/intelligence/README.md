@@ -1,3 +1,11 @@
 # Intelligence Layer
 
-AI, ML, and analytics modules; converts processed data to trade signals/forecasts. No trading, order, or execution logic. Signal creators only.
+Responsibilities:
+- Subscribe to ProcessedMarketState
+- Run deterministic, minimal signal generation only
+- Publish advisory TradeSignal (never orders/execution/risk)
+- Orchestration via intelligencePipeline.ts only
+
+Prohibited:
+- No advanced analytics, ML, persistence, order/risk/execution, or strategy logic
+- No output except TradeSignal
