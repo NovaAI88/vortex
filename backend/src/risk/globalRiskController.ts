@@ -4,16 +4,19 @@ import { getPortfolio } from '../portfolio/state/portfolioLedger';
 const maxDrawdownPercent = 20;
 const dailyLossLimitPercent = 5;
 const maxPositionSizePercent = 10;
-let peakEquity = 99999;
+let peakEquity: number|undefined = undefined;
 let killSwitch = false;
 let lastDailyCheck = '';
-let dailyStartEquity = 99999;
+let dailyStartEquity: number|undefined = undefined;
 
 export function checkLimits(): { allowed: boolean, blockedBy?: string } {
   const p = getPortfolio();
   if (!p) return { allowed: true };
   const now = new Date();
   const day = now.toISOString().slice(0,10);
+  // Lazy-initialize from actual portfolio equity on first valid data
+  if (peakEquity === undefined || Number.isNaN(peakEquity)) peakEquity = p.equity;
+  if (dailyStartEquity === undefined || Number.isNaN(dailyStartEquity)) dailyStartEquity = p.equity;
   if (lastDailyCheck !== day) {
     lastDailyCheck = day;
     dailyStartEquity = p.equity;
@@ -42,6 +45,6 @@ export function getStatus() {
     maxPositionSizePercent,
     killSwitch,
     tradingAllowed: !killSwitch,
-    peakEquity: Number(peakEquity.toFixed(2))
+    peakEquity: peakEquity === undefined ? null : Number(peakEquity.toFixed(2))
   };
 }
