@@ -1,12 +1,15 @@
 import { Router } from 'express';
+import { getRecentExecutions } from '../execution/executionLog';
 const router = Router();
 
 router.get('/trades', (_req, res) => {
-  res.json([
-    { side: "buy", price: "67085", size: "0.098", time: "13:47:59" },
-    { side: "sell", price: "67086", size: "0.25", time: "13:47:52" },
-    { side: "buy", price: "67087", size: "0.11", time: "13:47:45" }
-  ]);
+  const recents = getRecentExecutions();
+  res.json(recents.map(exec => ({
+    side: exec.side||'buy',
+    price: exec.symbol || 'BTCUSDT',
+    size: exec.qty || '1',
+    time: exec.timestamp
+  })));
 });
 
 export default router;

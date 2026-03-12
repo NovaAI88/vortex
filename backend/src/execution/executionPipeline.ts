@@ -23,6 +23,11 @@ export function startExecutionPipeline(bus: EventBus): void {
       timestamp: new Date().toISOString()
     };
     const result = mockExchangeAdapter(request);
+    // Log execution for trade API bridging
+    try {
+      const { logExecution } = require('./executionLog');
+      logExecution(result);
+    } catch (e) { /* silent fail if not present */ }
     publishExecutionResult(bus, result, 'execution', envelope.correlationId);
     processedRiskDecisionIds.add(decision.id);
   });
