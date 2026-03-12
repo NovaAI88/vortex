@@ -1,20 +1,38 @@
-// Simple Binance connector for one symbol (BTCUSDT), WebSocket stream
+// Binance connector for BTCUSDT — streams into event bus
 import WebSocket from 'ws';
+import { adaptBinanceTradeToMarketEvent } from '../adapters/binanceAdapter';
+import { publishMarketEvent } from '../publishers/marketEventPublisher';
+import { EventBus } from '../../events/eventBus';
 
 const BINANCE_WS_URL = 'wss://stream.binance.com:9443/ws/btcusdt@trade';
+let activeWs: WebSocket|null = null;
+let reconnectTimer: NodeJS.Timeout|null = null;
 
-export function startBinanceConnector(onMessage: (payload: any) => void): () => void {
-  const ws = new WebSocket(BINANCE_WS_URL);
-  ws.on('open', () => console.log('[BinanceConnector] Connected.'));
-  ws.on('message', data => {
-    try {
-      const msg = JSON.parse(data.toString());
-      onMessage(msg);
-    } catch(e) {
-      console.error('[BinanceConnector] Parse error:', e);
-    }
-  });
-  ws.on('close', () => console.log('[BinanceConnector] Closed.'));
-  // No auto-reconnect for this stage
-  return () => ws.close();
+export function startBinanceConnector(bus: EventBus) {
+  function connect() {
+    activeWs = new WebSocket(BINANCE_WS_URL);
+    activeWs.on('open', () => console.log('[BinanceConnector] Connected.'));
+    activeWs.on('message', data => {
+      try {
+        const msg = JSON.parse(data.toString());
+        const evt = adaptBinanceTradeToMarketEvent(msg);
+        publishMarketEvent(bus, evt, 'binance');
+      } catch(e) {
+        console.error('[BinanceConnector] Parse error:', e);
+      }
+    });
+    activeWs.on('close', () => {
+      console.log('[BinanceConnector] Closed. Reconnecting in 3s…');
+      reconnectTimer = setTimeout(connect, 3000);
+    });
+    activeWs.on('error', err => {
+      console.error('[BinanceConnector] Error:', err);
+      if (activeWs) activeWs.close();
+    });
+  }
+  connect();
+  return () => {
+    if (activeWs) activeWs.close();
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+  };
 }
