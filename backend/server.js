@@ -27,6 +27,25 @@ app.get("/status", (_req, res) => {
   });
 });
 
+// --- Mock Order Book Endpoint ---
+app.get("/api/orderbook", (_req, res) => {
+  res.json({
+    bids: [["67085.00", "0.80"], ["67080.50", "0.60"]],
+    asks: [["67086.50", "0.75"], ["67090.00", "1.10"]],
+    support: "67,100.00",
+    resistance: "67,300.00"
+  });
+});
+
+// --- Mock Trade Flow Endpoint ---
+app.get("/api/trades", (_req, res) => {
+  res.json([
+    { side: "buy", price: "67085", size: "0.098", time: "13:47:59" },
+    { side: "sell", price: "67086", size: "0.25", time: "13:47:52" },
+    { side: "buy", price: "67087", size: "0.11", time: "13:47:45" }
+  ]);
+});
+
 app.listen(port, () => {
   console.log(`AETHER backend running on port ${port}`);
 });
