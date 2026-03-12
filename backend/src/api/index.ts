@@ -3,6 +3,10 @@ import { getLatestPositionSnapshot } from '../portfolio/state/positionTracker';
 import { getLatestPortfolioSnapshot } from '../portfolio/state/portfolioTracker';
 import orderbookRouter from './orderbook';
 import tradesRouter from './trades';
+import signalsRouter from './signals';
+import decisionsRouter from './decisions';
+import riskRouter from './risk';
+import engineRouter from './engine';
 const app = express();
 
 app.get('/api/ping', (req, res) => res.status(200).send('pong'));
@@ -20,5 +24,9 @@ app.get('/api/portfolio', (req, res) => {
 
 app.use('/api', orderbookRouter);
 app.use('/api', tradesRouter);
+app.use('/api', signalsRouter);
+app.use('/api', decisionsRouter);
+app.use('/api', riskRouter);
+app.use('/api', engineRouter);
 
 export default app;

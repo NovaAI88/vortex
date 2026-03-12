@@ -11,6 +11,8 @@ export function startRiskPipeline(bus: EventBus): void {
     const candidate = envelope.payload;
     const duplicate = processedIds.has(candidate.id);
     const decision = basicRiskEvaluator(candidate, duplicate);
+    // Bridge: log for API
+    try { require('./state/riskState').logRisk(decision); } catch(e) {}
     publishRiskDecision(bus, decision, 'risk', envelope.correlationId);
     if (!duplicate) {
       processedIds.add(candidate.id);
