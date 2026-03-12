@@ -34,6 +34,8 @@ export function generateSignals(state: ProcessedMarketState): TradeSignal[] {
   }).filter(Boolean) as TradeSignal[];
 }
 
-// Register built-in strategies (static import)
+// Register basic built-in strategy and all momentum parameter variants
 import basicMomentum from './strategies/basicMomentumStrategy';
+import { momentumVariants } from './evolution/strategyEvolver';
 registerStrategy(basicMomentum);
+momentumVariants.forEach(({strategy}) => registerStrategy(strategy));

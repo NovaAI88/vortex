@@ -19,4 +19,24 @@ router.get('/strategies/weights', (_req, res) => {
   }
 });
 
+router.get('/strategies/evolution', (_req, res) => {
+  try {
+    const { momentumVariants } = require('../intelligence/evolution/strategyEvolver');
+    const { getStrategyPerformance } = require('../intelligence/performance/strategyPerformanceTracker');
+    const perf = getStrategyPerformance();
+    const out = momentumVariants.map(({params}) => {
+      const id = `momentum:${params.variantId}`;
+      return {
+        strategyId: 'momentum',
+        variantId: params.variantId,
+        params,
+        performance: perf[id] || {}
+      };
+    });
+    res.json(out);
+  } catch (e) {
+    res.status(500).json({ error: 'Strategy evolution unavailable' });
+  }
+});
+
 export default router;

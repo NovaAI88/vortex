@@ -8,15 +8,17 @@ interface StrategyStats {
   lastEquity: number;
 }
 
+// Use {strategyId}:{variantId} as key
 const stats: Record<string, StrategyStats> = {};
 
 import { updateWeights } from '../weighting/strategyWeightEngine';
 
 export function recordTrade(exec: any) {
   if (!exec || !exec.strategyId) return;
-  const id = exec.strategyId;
-  if (!stats[id]) stats[id] = { trades: 0, wins: 0, losses: 0, realizedPnL: 0, maxDrawdown: 0, lastEquity: 10000 };
-  const s = stats[id];
+  // Support variant-level attribution
+  const variantKey = exec.variantId ? `${exec.strategyId}:${exec.variantId}` : exec.strategyId;
+  if (!stats[variantKey]) stats[variantKey] = { trades: 0, wins: 0, losses: 0, realizedPnL: 0, maxDrawdown: 0, lastEquity: 10000 };
+  const s = stats[variantKey];
   s.trades += 1;
   const pnl = exec.pnl || exec.realizedPnL || 0; // Expect exec to include PnL
   s.realizedPnL += pnl;
@@ -28,7 +30,6 @@ export function recordTrade(exec: any) {
   }
   updateWeights(getStrategyPerformance());
 }
-
 
 export function getStrategyPerformance() {
   // Compute win rate dynamically for weighting, safe default
