@@ -46,6 +46,37 @@ app.get("/api/trades", (_req, res) => {
   ]);
 });
 
+// --- Mock Strategies Performance Endpoint ---
+app.get("/api/strategies/performance", (_req, res) => {
+  res.json([
+    { strategy: "Momentum", pnl: 1240, trades: 42 },
+    { strategy: "MeanReversion", pnl: -210, trades: 18 }
+  ]);
+});
+
+// --- Mock Strategies Weights Endpoint ---
+app.get("/api/strategies/weights", (_req, res) => {
+  res.json({ Momentum: 0.6, MeanReversion: 0.4 });
+});
+
+// --- Mock Engine Status Endpoint ---
+app.get("/api/engine/status", (_req, res) => {
+  res.json({
+    status: "running",
+    mode: "paper",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// --- Mock Engine Risk Endpoint ---
+app.get("/api/engine/risk", (_req, res) => {
+  res.json({
+    riskLevel: "low",
+    exposure: 0.32
+  });
+});
+
 app.listen(port, () => {
   console.log(`AETHER backend running on port ${port}`);
 });
+
