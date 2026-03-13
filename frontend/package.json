@@ -6,7 +6,8 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.0.0",
-    "react-scripts": "^5.0.0"
+    "react-scripts": "^5.0.0",
+    "recharts": "^2.15.4"
   },
   "devDependencies": {
     "typescript": "^4.0.0"
