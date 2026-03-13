@@ -2,13 +2,15 @@
 const API_BASE = 'http://localhost:3000';
 
 export async function fetchStatus() {
+  // Retain for compatibility; GET /api/status
+
   const resp = await fetch(`${API_BASE}/api/status`);
   if (!resp.ok) throw new Error('Failed to fetch status');
   return resp.json();
 }
 
 export async function fetchPortfolio() {
-  const resp = await fetch(`${API_BASE}/api/portfolio/paper`);
+  const resp = await fetch(`${API_BASE}/api/portfolio`);
   if (!resp.ok) throw new Error('Failed to fetch portfolio');
   return resp.json();
 }
@@ -58,5 +60,30 @@ export async function fetchEngineStatus() {
 export async function fetchEngineRisk() {
   const resp = await fetch(`${API_BASE}/api/engine/risk`);
   if (!resp.ok) throw new Error('Failed to fetch engine risk');
+  return resp.json();
+}
+
+export async function fetchApiStatus() {
+  const resp = await fetch(`${API_BASE}/api/status`);
+  if (!resp.ok) throw new Error('Failed to fetch API status');
+  return resp.json();
+}
+
+export async function fetchOrderbook() {
+  const resp = await fetch(`${API_BASE}/api/orderbook`);
+  if (!resp.ok) throw new Error('Failed to fetch orderbook');
+  return resp.json();
+}
+
+export async function fetchTrades() {
+  const resp = await fetch(`${API_BASE}/api/trades`);
+  if (!resp.ok) throw new Error('Failed to fetch trades');
+  return resp.json();
+}
+
+export async function fetchLegacyStatus() {
+  const resp = await fetch(`${API_BASE}/status`);
+  // Only use if /status endpoint needed for health badge
+  if (!resp.ok) throw new Error('Failed to fetch legacy status');
   return resp.json();
 }
