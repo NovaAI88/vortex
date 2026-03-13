@@ -1,4 +1,5 @@
 import React from 'react';
+import { NavLink } from 'react-router-dom';
 
 const navLinks = [
   { label: 'Dashboard', href: '/', icon: (
@@ -40,10 +41,10 @@ const SidebarNav: React.FC = () => (
     zIndex:20
   }}>
     {navLinks.map((link) => (
-      <a
-        href={link.href}
+      <NavLink
+        to={link.href}
         key={link.label}
-        style={{
+        style={({ isActive }) => ({
           display: 'flex',
           flexDirection: 'column',
           alignItems:'center',
@@ -52,32 +53,41 @@ const SidebarNav: React.FC = () => (
           padding: '15px 0 8px 0',
           width: 62,
           borderRadius: 14,
-          color: '#e5f5ff',
+          color: isActive ? '#aeefff' : '#e5f5ff',
           fontWeight: 700,
           fontSize: '0.99rem',
-          background: 'linear-gradient(180deg,#232d69 0%,#0f1628 100%)',
+          background: isActive
+            ? 'linear-gradient(180deg,#2c3a8e 0%,#13234c 100%)'
+            : 'linear-gradient(180deg,#232d69 0%,#0f1628 100%)',
           margin: '0 0 5px 0',
-          boxShadow: '0 2px 16px #02123919',
+          boxShadow: isActive
+            ? '0 4px 26px #30fdff25, 0 2px 16px #02123919'
+            : '0 2px 16px #02123919',
           letterSpacing:'0.01em',
           textDecoration:'none',
-          transition: 'all 0.16s',
+          transition: 'all 0.18s',
           cursor:'pointer',
-          border:'2px solid #202a4d',
-        }}
+          border: isActive ? '2.5px solid #32cfff' : '2px solid #202a4d',
+        })}
         onMouseOver={e => {
           e.currentTarget.style.background='#20305a';
           e.currentTarget.style.color='#aeefff';
           e.currentTarget.style.transform='translateY(-2px) scale(1.07)';
         }}
         onMouseOut={e => {
-          e.currentTarget.style.background='linear-gradient(180deg,#232d69 0%,#0f1628 100%)';
-          e.currentTarget.style.color='#e5f5ff';
+          //@ts-ignore
+          const isActive = e.currentTarget.classList.contains('active');
+          e.currentTarget.style.background=isActive
+            ? 'linear-gradient(180deg,#2c3a8e 0%,#13234c 100%)'
+            : 'linear-gradient(180deg,#232d69 0%,#0f1628 100%)';
+          e.currentTarget.style.color=isActive ? '#aeefff' : '#e5f5ff';
           e.currentTarget.style.transform='none';
         }}
+        className={({ isActive }) => isActive ? 'active' : ''}
       >
         {link.icon}
         <span style={{ fontSize: '1.06em',marginTop:1,letterSpacing:'-.01em' }}>{link.label}</span>
-      </a>
+      </NavLink>
     ))}
     <div style={{flex:1}}></div>
   </nav>
