@@ -4,6 +4,9 @@ import { EVENT_TOPICS } from '../events/topics';
 import { mockExchangeAdapter } from './adapters/mockExchangeAdapter';
 import { publishExecutionResult } from './publishers/executionResultPublisher';
 import { ExecutionRequest } from '../models/ExecutionRequest';
+import { getEngineMode, EngineMode } from './mode/executionMode';
+import { logExecution } from './executionLog';
+import { recordExecution } from '../portfolio/state/portfolioLedger';
 
 const processedRiskDecisionIds = new Set<string>();
 
@@ -26,7 +29,6 @@ export function startExecutionPipeline(bus: EventBus): void {
       timestamp: new Date().toISOString()
     };
     // Mode gating logic
-    const { getEngineMode, EngineMode } = require('./mode/executionMode');
     const mode = getEngineMode();
     if (mode === EngineMode.OFF) {
       // Drop execution request
@@ -47,13 +49,10 @@ export function startExecutionPipeline(bus: EventBus): void {
     }
     if (result) {
       try {
-        const { logExecution } = require('./executionLog');
         logExecution(result);
       } catch (e) {}
       // Stage 8: forward to portfolio ledger in PAPER_TRADING only
       try {
-        const { recordExecution } = require('../portfolio/state/portfolioLedger');
-        const { getEngineMode, EngineMode } = require('./mode/executionMode');
         if (getEngineMode() === EngineMode.PAPER_TRADING) {
           recordExecution(result);
         }
