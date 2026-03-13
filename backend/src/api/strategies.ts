@@ -3,8 +3,8 @@ const router = Router();
 
 router.get('/strategies/performance', (_req, res) => {
   try {
-    const { getStrategyPerformance } = require('../intelligence/performance/strategyPerformanceTracker');
-    res.json(getStrategyPerformance());
+    const { getVariantPerformance } = require('../intelligence/performance/strategyPerformanceTracker');
+    res.json(getVariantPerformance());
   } catch (e) {
     res.status(500).json({ error: 'Strategy performance unavailable' });
   }
