@@ -43,8 +43,13 @@ export function recordExecution(exec: ExecutionResult) {
   trades.push({ ...exec, symbol, qty, price, timestamp: new Date().toISOString() });
   equity = balance + Object.keys(positions).reduce((eq, s) => {
     const p = positions[s];
-    // Assume mark = last trade price; simplified
-    if (p.qty !== 0) eq += p.qty * price; // crude mark
+    if (p.qty === 0) return eq;
+    const mark = price;
+    if (p.qty > 0) {
+      eq += p.qty * mark; // long: mark-to-market like before
+    } else if (p.qty < 0) {
+      eq += (-p.qty) * (p.avgEntry - mark); // short: unrealized PnL, no notional subtraction
+    }
     return eq;
   }, 0);
 }
