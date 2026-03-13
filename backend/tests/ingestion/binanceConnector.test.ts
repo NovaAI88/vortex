@@ -1,10 +1,10 @@
 // Test basic Binance connector pipeline
 import { startBinanceConnector } from '../../src/ingestion/connectors/binanceConnector';
 import { describe, it, expect } from 'vitest';
-import { adaptBinanceTradeToMarketEvent } from '../../../src/ingestion/adapters/binanceAdapter';
-import { publishMarketEvent } from '../../../src/ingestion/publishers/marketEventPublisher';
-import { EventBus } from '../../../src/events/eventBus';
-import { EVENT_TOPICS } from '../../../src/events/topics';
+import { adaptBinanceTradeToMarketEvent } from '../../src/ingestion/adapters/binanceAdapter';
+import { publishMarketEvent } from '../../src/ingestion/publishers/marketEventPublisher';
+import { EventBus } from '../../src/events/eventBus';
+import { EVENT_TOPICS } from '../../src/events/topics';
 
 describe('Binance Ingestion Pipeline', () => {
   it('should emit MarketEvent from live Binance trade (BTCUSDT)', done => {
