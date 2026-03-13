@@ -10,7 +10,8 @@ export async function fetchStatus() {
 }
 
 export async function fetchPortfolio() {
-  const resp = await fetch(`${API_BASE}/api/portfolio`);
+  // Try /api/portfolio/paper first for real paper trading
+  const resp = await fetch(`${API_BASE}/api/portfolio/paper`);
   if (!resp.ok) throw new Error('Failed to fetch portfolio');
   return resp.json();
 }
