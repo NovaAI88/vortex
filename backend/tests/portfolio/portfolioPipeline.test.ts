@@ -1,5 +1,5 @@
 // Portfolio Pipeline Test: ExecutionResult → Portfolio/Position Snapshot (dedup logic)
-import { EventBus } from '../../../src/events/eventBus';
+import { EventBus } from '../../src/events/eventBus';
 import { EVENT_TOPICS } from '../../../src/events/topics';
 import { getMockRawPayload } from '../../../src/ingestion/connectors/mockConnector';
 import { adaptMockPayloadToMarketEvent } from '../../../src/ingestion/adapters/mockAdapter';

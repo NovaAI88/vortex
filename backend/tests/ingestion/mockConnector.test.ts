@@ -1,5 +1,5 @@
 // Test the mock ingestion pipeline: connector → adapter → publisher → event bus
-import { getMockRawPayload } from '../../../src/ingestion/connectors/mockConnector'
+import { getMockRawPayload } from '../../src/ingestion/connectors/mockConnector'
 import { adaptMockPayloadToMarketEvent } from '../../../src/ingestion/adapters/mockAdapter';
 import { publishMarketEvent } from '../../../src/ingestion/publishers/marketEventPublisher';
 import { EventBus } from '../../../src/events/eventBus';

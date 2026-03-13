@@ -1,5 +1,5 @@
 // API integration tests (Express endpoints)
-import app from '../../../src/api/index';
+import app from '../../src/api/index';
 import request from 'supertest';
 describe('API Endpoints', () => {
   it('should respond to GET /api/ping', async () => {

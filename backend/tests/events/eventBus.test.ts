@@ -3,6 +3,8 @@ import { EventBus } from '../../src/events/eventBus';
 import { EventEnvelope } from '../../src/events/eventEnvelope';
 import { EVENT_TOPICS } from '../../src/events/topics';
 
+import { describe, it, expect } from 'vitest';
+
 describe('EventBus', () => {
   it('should deliver events to subscriber', done => {
     const bus = new EventBus();

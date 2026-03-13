@@ -1,5 +1,5 @@
 // Test basic Binance connector pipeline
-import { startBinanceConnector } from '../../../src/ingestion/connectors/binanceConnector';
+import { startBinanceConnector } from '../../src/ingestion/connectors/binanceConnector';
 import { adaptBinanceTradeToMarketEvent } from '../../../src/ingestion/adapters/binanceAdapter';
 import { publishMarketEvent } from '../../../src/ingestion/publishers/marketEventPublisher';
 import { EventBus } from '../../../src/events/eventBus';
