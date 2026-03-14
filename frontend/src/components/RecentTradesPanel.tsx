@@ -18,7 +18,14 @@ const RecentTradesPanel: React.FC = () => {
     let mounted = true;
     setError(null);
     fetchPortfolio()
-      .then(res => mounted && setTrades(Array.isArray(res.trades) ? res.trades : []))
+      .then(res => {
+        if (!res || typeof res !== 'object' || !Array.isArray(res.trades)) {
+          setTrades([]);
+          setError('No trades data (unexpected backend response)');
+        } else {
+          setTrades(res.trades);
+        }
+      })
       .catch(() => mounted && setError('Failed to load trades'))
       .finally(() => mounted && setLoading(false));
     return () => { mounted = false; };

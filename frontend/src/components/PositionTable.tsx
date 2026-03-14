@@ -12,9 +12,11 @@ type PositionTableProps = {
   positions: Position[];
 };
 
-const PositionTable: React.FC<PositionTableProps> = ({ positions }) => (
+const PositionTable: React.FC<PositionTableProps & { backendError?: string }> = ({ positions, backendError }) => (
   <div>
-    {positions.length === 0 ? (
+    {backendError ? (
+      <div className="ui-card ui-card-empty" style={{color:'#c94'}}>Position data not available (backend error)</div>
+    ) : positions.length === 0 ? (
       <div className="ui-card ui-card-empty">No positions open.</div>
     ) : (
       <table className="data-table">

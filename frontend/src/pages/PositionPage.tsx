@@ -10,7 +10,16 @@ const PositionPage: React.FC = () => {
   useEffect(() => {
     setLoading(true);
     fetchPositions()
-      .then((resp) => setPositions(resp || []))
+      .then((resp) => {
+        // If error object returned instead of array, set backend error
+        if (resp && typeof resp === 'object' && !Array.isArray(resp) && resp.error) {
+          setError(resp.error);
+          setPositions([]);
+        } else {
+          setPositions(resp || []);
+          setError(null);
+        }
+      })
       .catch((err) => setError(String(err)))
       .finally(() => setLoading(false));
   }, []);
@@ -21,9 +30,7 @@ const PositionPage: React.FC = () => {
       <div className="ui-card" style={{overflowX:'auto'}}>
         {loading
           ? 'Loading positions...'
-          : error
-          ? <div style={{color:'#f95e5e',fontWeight:600}}>Error: {error}</div>
-          : <PositionTable positions={positions} />}
+          : <PositionTable positions={positions} backendError={error || undefined} />}
       </div>
     </div>
   );
