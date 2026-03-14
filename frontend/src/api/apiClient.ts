@@ -82,6 +82,13 @@ export async function fetchTrades() {
   return resp.json();
 }
 
+export async function fetchAlerts() {
+  const resp = await fetch(`${API_BASE}/api/alerts`);
+  if (!resp.ok) throw new Error('Failed to fetch alerts');
+  return resp.json();
+}
+
+
 export async function fetchLegacyStatus() {
   const resp = await fetch(`${API_BASE}/status`);
   // Only use if /status endpoint needed for health badge

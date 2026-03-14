@@ -8,6 +8,7 @@ import decisionsRouter from './decisions';
 import riskRouter from './risk';
 import engineRouter from './engine';
 import portfolioRouter from './portfolio';
+import alertsRouter from './alerts';
 const app = express();
 
 app.get('/api/ping', (req, res) => res.status(200).send('pong'));
@@ -30,6 +31,7 @@ app.use('/api', decisionsRouter);
 app.use('/api', riskRouter);
 app.use('/api', engineRouter);
 app.use('/api', portfolioRouter);
+app.use('/api', alertsRouter);
 import strategiesRouter from './strategies';
 app.use('/api', strategiesRouter);
 

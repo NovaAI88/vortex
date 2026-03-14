@@ -1,15 +1,19 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { fetchTrades as fetchTradesApi } from '../api/apiClient';
+
 interface Trade {
+  timestamp: string;
+  symbol: string;
   side: string;
-  price: string;
-  size: string;
-  time: string;
+  qty: number;
+  price: number;
+  variantId?: string;
+  status: string;
+  reason?: string;
 }
-const clr = (side: string) => side === 'buy' ? '#78f5bd' : '#ff8989';
+
 const POLL_INTERVAL = 5000;
 
-const TradeFlowStub: React.FC = () => {
+const TradeFlowPanel: React.FC = () => {
   const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,8 +26,8 @@ const TradeFlowStub: React.FC = () => {
     if (isInitial) setLoading(true);
     setError(null);
     try {
-      const d = await fetchTradesApi();
-      setTrades(d);
+      const data = await import('../api/apiClient').then(api => api.fetchTrades());
+      setTrades(Array.isArray(data) ? data : []);
       setStale(false);
     } catch (err: any) {
       setError('No data from backend');
@@ -44,21 +48,26 @@ const TradeFlowStub: React.FC = () => {
       {loading ? (
         <div style={{ color: '#abc' }}>Loading…</div>
       ) : trades.length === 0 ? (
-        <div style={{ color: '#ffeeb3',fontWeight:600 }}>No live trades yet.</div>
+        <div style={{ color: '#ffeeb3',fontWeight:600 }}>No recent trades.</div>
       ) : (
-        <>
+        <div style={{ maxHeight: 220, overflowY: 'auto' }}>
         {trades.map((row, i) => (
-          <div key={i} style={{fontSize:14.2, fontWeight:600, color: clr(row.side), display:'flex', gap:18}}>
+          <div key={i} style={{fontSize:13.5, fontWeight:500, color: row.side === 'buy' ? '#77efab' : '#ff9797', display:'flex', gap:12, alignItems:'center', borderBottom:'1px solid #25314c', padding:'4px 0'}}>
+            <span style={{minWidth:85, opacity:0.61, fontFamily:'monospace', fontSize:13}}>{new Date(row.timestamp).toLocaleTimeString()}</span>
+            <span><b>{row.symbol}</b></span>
             <span>{row.side.toUpperCase()}</span>
-            <span>{row.price}</span>
-            <span style={{color:'#c7e8e0'}}>{row.size} BTC</span>
-            <span style={{marginLeft:'auto', opacity:0.61, fontWeight:400}}>{row.time}</span>
+            <span>{row.qty}</span>
+            <span>{row.price!=null ? row.price.toLocaleString() : '—'}</span>
+            {row.variantId && <span style={{color:'#cfc'}}>{row.variantId}</span>}
+            <span style={{fontWeight:700}}>{row.status}</span>
+            {row.reason && <span style={{fontSize:12, color:'#eed48f'}} title={row.reason}>({row.reason.slice(0,36)})</span>}
           </div>
         ))}
-        {stale && <div style={{ color: '#f6e18d', fontSize:12, marginTop:3 }}>Trade flow is stale / last backend fetch failed.</div>}
-        </>
+        </div>
       )}
+      {stale && <div style={{ color: '#f6e18d', fontSize:12, marginTop:3 }}>Trade flow is stale / backend fetch failed.</div>}
+      {error && <div style={{ color: '#ff8585', marginTop: 5 }}>{error}</div>}
     </div>
   );
 };
-export default TradeFlowStub;
+export default TradeFlowPanel;

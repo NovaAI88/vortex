@@ -51,6 +51,16 @@ export function startExecutionPipeline(bus: EventBus): void {
     if (result) {
       try {
         logExecution(result);
+        if (result.status === 'failed' || result.status === 'rejected') {
+          // Wire into alertStore
+          const { appendAlert } = require('../alerts/alertStore');
+          appendAlert({
+            timestamp: result.timestamp,
+            severity: 'error',
+            source: 'execution',
+            message: result.reason || 'Rejected/failure execution',
+          });
+        }
       } catch (e) {}
       // Stage 8: forward to portfolio ledger in PAPER_TRADING only
       try {
