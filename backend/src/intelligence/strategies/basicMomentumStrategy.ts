@@ -12,8 +12,9 @@ export function generateMomentumSignal(state: ProcessedMarketState, params: Mome
   if (!state) return null;
   let signalType = 'hold';
   const mov = state.movingAvg || state.price;
-  if (state.price < mov - params.threshold) signalType = 'buy';
-  else if (state.price > mov + params.threshold) signalType = 'sell';
+  const effectiveThreshold = Math.max(0.005, params.threshold / 1000);
+  if (state.price < mov - effectiveThreshold) signalType = 'buy';
+  else if (state.price > mov + effectiveThreshold) signalType = 'sell';
   return {
     source: 'momentum-multivariant',
     symbol: state.symbol,
