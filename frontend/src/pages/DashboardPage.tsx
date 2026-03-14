@@ -8,6 +8,7 @@ import MarketIntelPanel from '../components/MarketIntelPanel';
 import StrategyPerformanceTable from '../components/StrategyPerformanceTable';
 import StrategyWeightsPanel from '../components/StrategyWeightsPanel';
 import EngineStatusPanel from '../components/EngineStatusPanel';
+import OperatorControlsPanel from '../components/OperatorControlsPanel';
 import { fetchStatus, fetchPortfolio, fetchPositions } from '../api/apiClient';
 
 const DashboardPage: React.FC = () => {
@@ -64,6 +65,7 @@ const DashboardPage: React.FC = () => {
 
         {/* Right compact operations/info column */}
         <aside style={{ display: 'flex', flexDirection: 'column', gap: 13, minWidth: 310, maxWidth:420 }}>
+          <OperatorControlsPanel />
           <OrderBookStub />
           <TradeFlowStub />
           <AlertPanel />

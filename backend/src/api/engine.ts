@@ -31,4 +31,14 @@ router.get('/engine/risk', (_req, res) => {
   }
 });
 
+// Minimal GET /engine/state for dashboard
+router.get('/engine/state', (_req, res) => {
+  try {
+    const { getEnginePanelState } = require('../state/engineState');
+    res.json(getEnginePanelState());
+  } catch {
+    res.status(500).json({ error: 'Engine panel state unavailable' });
+  }
+});
+
 export default router;

@@ -37,7 +37,7 @@ const BrandHeader: React.FC = () => (
       verticalAlign:'middle',
       lineHeight:'110%'
     }}>
-      AETHER
+      <span style={{fontFamily:'serif',fontSize:'2.35rem',position:'relative',top:'-2px',marginRight:1,letterSpacing:'0.06em'}}>Æ</span>THER
     </span>
     <span style={{color: '#98e1ff', fontWeight: 500, fontSize: '1.07rem', opacity: 0.76, marginLeft: 13,letterSpacing:'0.14em',textTransform:'uppercase'}}>Operator Terminal</span>
     <div style={{flex:1}}/>
