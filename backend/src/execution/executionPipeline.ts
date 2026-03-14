@@ -30,7 +30,8 @@ export function startExecutionPipeline(bus: EventBus): void {
     };
     // Mode gating logic
     const mode = getEngineMode();
-    if (mode === EngineMode.OFF) {
+    const { getEnginePanelState } = require('../state/engineState');
+    if (mode === EngineMode.OFF || getEnginePanelState().paused) {
       // Drop execution request
       return;
     }

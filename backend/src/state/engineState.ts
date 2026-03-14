@@ -14,4 +14,11 @@ const state: EnginePanelState = {
 export function getEnginePanelState(): EnginePanelState {
   return state;
 }
-// (In future: add mutators for POST endpoints)
+
+export function pauseEngine() {
+  state.paused = true;
+}
+
+export function resumeEngine() {
+  state.paused = false;
+}

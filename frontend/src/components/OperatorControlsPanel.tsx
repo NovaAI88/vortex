@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchEnginePanelState } from '../api/enginePanelApi';
+import { fetchEnginePanelState, pauseEngine, resumeEngine } from '../api/enginePanelApi';
 
 const BUTTON_STYLE = {
   background: 'linear-gradient(90deg,#242e3e 80%,#233f5a 120%)',
@@ -41,10 +41,37 @@ const OperatorControlsPanel: React.FC = () => {
     }).catch(() => setErr('Engine state unavailable')).finally(() => setLoading(false));
   }, []);
 
-  // TODO: Wire to actual backend commands; these are safe placeholders for now
-  const pauseTrading = () => setTradingPaused(true);
-  const resumeTrading = () => setTradingPaused(false);
+  const [actionLoading, setActionLoading] = useState<'pause'|'resume'|null>(null);
+  const [actionError, setActionError] = useState<string|null>(null);
+  const pauseTrading = async () => {
+    setActionLoading('pause'); setActionError(null);
+    try {
+      await pauseEngine();
+      await reloadEngineState();
+    } catch(e) { setActionError('Pause failed'); }
+    setActionLoading(null);
+  };
+  const resumeTrading = async () => {
+    setActionLoading('resume'); setActionError(null);
+    try {
+      await resumeEngine();
+      await reloadEngineState();
+    } catch(e) { setActionError('Resume failed'); }
+    setActionLoading(null);
+  };
   const resetPortfolio = () => { setResetPending(true); setTimeout(()=>setResetPending(false),1500); };
+
+  async function reloadEngineState() {
+    setLoading(true);
+    try {
+      const res = await fetchEnginePanelState();
+      setTradingPaused(!!res.paused);
+      setVariant(res.activeVariant || 'v1');
+      setEngineMode(res.mode || 'PAPER_TRADING');
+      setErr(null);
+    } catch { setErr('Engine state unavailable'); }
+    setLoading(false);
+  }
 
   return (
     <div style={{
@@ -66,10 +93,20 @@ const OperatorControlsPanel: React.FC = () => {
         <div>Variant: <span style={{fontWeight:900,color:'#bcf'}}>{variant.toUpperCase()}</span></div>
       </div>
       <div style={{display:'flex',alignItems:'center',marginBottom:17,gap:10}}>
-        <button style={tradingPaused?BUTTON_STYLE:SELECTED_STYLE} disabled title="Pending backend wiring">Resume Trading (placeholder)</button>
-        <button style={tradingPaused?SELECTED_STYLE:BUTTON_STYLE} disabled title="Pending backend wiring">Pause Trading (placeholder)</button>
-        <button style={{...BUTTON_STYLE,background:'#ad312c',border:'1.7px solid #bf5454',color:'#fff6f6',opacity:resetPending?0.6:1}} disabled title="Pending backend wiring">Reset Paper Portfolio (placeholder)</button>
+        <button
+          style={tradingPaused ? BUTTON_STYLE : SELECTED_STYLE}
+          disabled={!tradingPaused || actionLoading==='resume' || loading}
+          onClick={resumeTrading}
+        >{actionLoading==='resume' ? 'Resuming…' : 'Resume Trading'}</button>
+        <button
+          style={tradingPaused ? SELECTED_STYLE : BUTTON_STYLE}
+          disabled={tradingPaused || actionLoading==='pause' || loading}
+          onClick={pauseTrading}
+        >{actionLoading==='pause' ? 'Pausing…' : 'Pause Trading'}</button>
+        <button style={{...BUTTON_STYLE,background:'#ad312c',border:'1.7px solid #bf5454',color:'#fff6f6',opacity:resetPending?0.6:1}} disabled title="Pending backend implementation">Reset Paper Portfolio</button>
       </div>
+      {actionError && <div style={{color:'#ff8585',marginBottom:7,marginTop:-10,fontWeight:700}}>{actionError}</div>}
+
       <div style={{marginTop:12,marginBottom:3,fontWeight:700,fontSize:15,color:'#8be7fa'}}>Variant Toggle</div>
       <div style={{display:'flex',gap:16,marginBottom:6,alignItems:'center'}}>
         {['v1','v2','v3'].map((v)=>

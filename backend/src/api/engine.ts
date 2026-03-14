@@ -41,4 +41,25 @@ router.get('/engine/state', (_req, res) => {
   }
 });
 
+// Pause/resume engine (POST)
+router.post('/engine/pause', (_req, res) => {
+  try {
+    const { pauseEngine } = require('../state/engineState');
+    pauseEngine();
+    res.json({ paused: true });
+  } catch {
+    res.status(500).json({ error: 'Pause failed' });
+  }
+});
+
+router.post('/engine/resume', (_req, res) => {
+  try {
+    const { resumeEngine } = require('../state/engineState');
+    resumeEngine();
+    res.json({ paused: false });
+  } catch {
+    res.status(500).json({ error: 'Resume failed' });
+  }
+});
+
 export default router;
