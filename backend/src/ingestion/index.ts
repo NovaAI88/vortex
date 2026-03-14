@@ -16,7 +16,14 @@ export function startIngestion(bus: EventBus, useLive=false) {
       console.log('[ingestion] LIVE market data mode enabled (Binance connector started).');
     } catch (e) {
       console.error('[ingestion] Cannot start live Binance ingestion: ws module or connector missing.', e);
-      stop = () => {};
+      // Fallback to mock mode if live fails
+      const interval = setInterval(() => {
+        const raw = getMockRawPayload();
+        const evt = adaptBinanceTradeToMarketEvent(raw);
+        publishMarketEvent(bus, evt, 'mock');
+      }, 2000);
+      stop = () => clearInterval(interval);
+      console.log('[ingestion] LIVE failed; falling back to MOCK data mode.');
     }
   } else {
     // Mock: periodic random trades
