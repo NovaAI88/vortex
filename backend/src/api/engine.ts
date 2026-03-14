@@ -62,4 +62,15 @@ router.post('/engine/resume', (_req, res) => {
   }
 });
 
+// POST /engine/reset-portfolio (paper mode only)
+router.post('/engine/reset-portfolio', (_req, res) => {
+  try {
+    const { resetPortfolio } = require('../portfolio/state/portfolioLedger');
+    resetPortfolio();
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Portfolio reset failed' });
+  }
+});
+
 export default router;

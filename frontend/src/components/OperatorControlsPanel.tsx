@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { fetchEnginePanelState, pauseEngine, resumeEngine } from '../api/enginePanelApi';
+import { fetchEnginePanelState, pauseEngine, resumeEngine, resetPortfolio as backendResetPortfolio } from '../api/enginePanelApi';
 
 const BUTTON_STYLE = {
   background: 'linear-gradient(90deg,#242e3e 80%,#233f5a 120%)',
@@ -38,7 +38,12 @@ const OperatorControlsPanel: React.FC = () => {
       setVariant(res.activeVariant || 'v1');
       setEngineMode(res.mode || 'PAPER_TRADING');
       setErr(null);
-    }).catch(() => setErr('Engine state unavailable')).finally(() => setLoading(false));
+    }).catch(() => {
+      setErr('Engine state unavailable');
+      setTradingPaused(false);
+      setVariant('v1');
+      setEngineMode('–––');
+    }).finally(() => setLoading(false));
   }, []);
 
   const [actionLoading, setActionLoading] = useState<'pause'|'resume'|null>(null);
@@ -59,7 +64,16 @@ const OperatorControlsPanel: React.FC = () => {
     } catch(e) { setActionError('Resume failed'); }
     setActionLoading(null);
   };
-  const resetPortfolio = () => { setResetPending(true); setTimeout(()=>setResetPending(false),1500); };
+  const [resetError, setResetError] = useState<string|null>(null);
+  const resetPortfolio = async () => {
+    setResetPending(true);
+    setResetError(null);
+    try {
+      await backendResetPortfolio();
+      await reloadEngineState();
+    } catch(e) { setResetError('Portfolio reset failed'); }
+    setTimeout(()=>setResetPending(false),1000);
+  };
 
   async function reloadEngineState() {
     setLoading(true);
@@ -86,8 +100,9 @@ const OperatorControlsPanel: React.FC = () => {
       fontFamily: 'Inter, Segoe UI, Arial',
     }}>
       <div style={{fontWeight:800,fontSize:'1.25rem',color:'#88e2ff',letterSpacing:'0.1em',marginBottom:15}}>Operator Controls</div>
-      {loading ? <div style={{color:'#adeaff',marginBottom:12,fontWeight:700}}>Loading engine state…</div> : err ? <div style={{color:'#ff7e83',marginBottom:14}}>Engine state unavailable</div> : null}
-      <div style={{marginBottom:15,fontSize:15.2,fontWeight:700,color:'#aef'}}>
+      {loading ? <div style={{color:'#adeaff',marginBottom:12,fontWeight:700}}>Loading engine state…</div> : null}
+      <div style={{marginBottom:err ? 6 : 15, fontSize:15.2, fontWeight:700, color:'#aef'}}>
+        {err && <div style={{color:'#ff7e83',fontWeight:700,marginBottom:6}}>Engine state unavailable</div>}
         <div>Engine mode: <span style={{color:'#fcc'}}>{engineMode || '?'}</span></div>
         <div>Status: <span style={{fontWeight:900,color:tradingPaused?'#ff876e':'#68facb'}}>{tradingPaused?'Paused':'Active'}</span></div>
         <div>Variant: <span style={{fontWeight:900,color:'#bcf'}}>{variant.toUpperCase()}</span></div>
@@ -103,9 +118,15 @@ const OperatorControlsPanel: React.FC = () => {
           disabled={tradingPaused || actionLoading==='pause' || loading}
           onClick={pauseTrading}
         >{actionLoading==='pause' ? 'Pausing…' : 'Pause Trading'}</button>
-        <button style={{...BUTTON_STYLE,background:'#ad312c',border:'1.7px solid #bf5454',color:'#fff6f6',opacity:resetPending?0.6:1}} disabled title="Pending backend implementation">Reset Paper Portfolio</button>
+        <button
+          style={{...BUTTON_STYLE,background:'#ad312c',border:'1.7px solid #bf5454',color:'#fff6f6',opacity:resetPending?0.6:1}}
+          onClick={resetPortfolio}
+          disabled={resetPending || loading}
+        >{resetPending ? 'Reset…' : 'Reset Paper Portfolio'}</button>
       </div>
       {actionError && <div style={{color:'#ff8585',marginBottom:7,marginTop:-10,fontWeight:700}}>{actionError}</div>}
+      {resetError && <div style={{color:'#fff397',marginBottom:7,fontWeight:700}}>{resetError}</div>}
+
 
       <div style={{marginTop:12,marginBottom:3,fontWeight:700,fontSize:15,color:'#8be7fa'}}>Variant Toggle</div>
       <div style={{display:'flex',gap:16,marginBottom:6,alignItems:'center'}}>

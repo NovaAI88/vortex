@@ -17,3 +17,9 @@ export async function resumeEngine() {
   if (!resp.ok) throw new Error('Failed to resume engine');
   return resp.json();
 }
+
+export async function resetPortfolio() {
+  const resp = await fetch(`${API_BASE}/api/engine/reset-portfolio`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to reset portfolio');
+  return resp.json();
+}

@@ -4,9 +4,17 @@ import { ExecutionResult } from '../../models/ExecutionResult';
 const START_BALANCE = 10000;
 let balance = START_BALANCE; // Available cash
 let equity = START_BALANCE; // Last equity
-const positions: Record<string, { qty: number; avgEntry: number }> = {};
-const trades: any[] = [];
+let positions: Record<string, { qty: number; avgEntry: number }> = {};
+let trades: any[] = [];
 let realizedPnL = 0;
+
+export function resetPortfolio() {
+  balance = START_BALANCE;
+  equity = START_BALANCE;
+  positions = {};
+  trades = [];
+  realizedPnL = 0;
+}
 
 import { recordTrade } from '../../intelligence/performance/strategyPerformanceTracker';
 
