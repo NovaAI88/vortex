@@ -19,7 +19,7 @@ const AlertPanel: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await import('../api/apiClient').then(api => api.fetchAlerts());
+        const data = await fetchAlerts();
         setAlerts(Array.isArray(data) ? data : []);
       } catch {
         setError('No alert data');
@@ -42,6 +42,15 @@ const AlertPanel: React.FC = () => {
               <span style={{fontWeight:700, fontSize:13}}>{new Date(alert.timestamp).toLocaleTimeString()} </span>
               <span style={{fontWeight:500, color:'#aaa', fontSize:12}}>[{alert.source}] </span>
               <span style={{fontWeight:700}}>{alert.severity.toUpperCase()}:</span> <span style={{color:'#ffe',marginLeft:5}}>{alert.message}</span>
+            </div>
+          ))
+        )
+      )}
+    </div>
+  );
+};
+export default AlertPanel;
+pan>
             </div>
           ))
         )

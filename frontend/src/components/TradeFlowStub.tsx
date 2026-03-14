@@ -26,7 +26,7 @@ const TradeFlowPanel: React.FC = () => {
     if (isInitial) setLoading(true);
     setError(null);
     try {
-      const data = await import('../api/apiClient').then(api => api.fetchTrades());
+      const data = await fetchTrades();
       setTrades(Array.isArray(data) ? data : []);
       setStale(false);
     } catch (err: any) {
