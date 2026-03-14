@@ -13,7 +13,7 @@ export function startIngestion(bus: EventBus, useLive=false) {
     try {
       startBinanceConnector = require('./connectors/binanceConnector').startBinanceConnector;
       stop = startBinanceConnector(bus);
-      console.log('[ingestion] Live Binance connector started.');
+      console.log('[ingestion] LIVE market data mode enabled (Binance connector started).');
     } catch (e) {
       console.error('[ingestion] Cannot start live Binance ingestion: ws module or connector missing.', e);
       stop = () => {};
@@ -26,7 +26,7 @@ export function startIngestion(bus: EventBus, useLive=false) {
       publishMarketEvent(bus, evt, 'mock');
     }, 2000);
     stop = () => clearInterval(interval);
-    console.log('[ingestion] Mock ingestion started.');
+    console.log('[ingestion] MOCK data mode active (using simulated prices).');
   }
   return stop;
 }

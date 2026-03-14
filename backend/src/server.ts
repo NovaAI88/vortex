@@ -43,7 +43,9 @@ import { setEngineMode, EngineMode } from './execution/mode/executionMode';
 
 const bus = new EventBus();
 setEngineMode(EngineMode.PAPER_TRADING);
-startIngestion(bus, false); // false = mock, true = live
+startIngestion(bus, true); // false = mock, true = live
+console.log('[engine] PAPER TRADING MODE ACTIVE');
+console.log('[engine] LIVE MARKET DATA MODE ACTIVE (Binance public)');
 startProcessingPipeline(bus);
 startIntelligencePipeline(bus);
 startDecisionPipeline(bus);
