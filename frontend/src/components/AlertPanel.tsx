@@ -10,7 +10,7 @@ interface Alert {
 const POLL_INTERVAL = 5000;
 
 const AlertPanel: React.FC = () => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);\nconst [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

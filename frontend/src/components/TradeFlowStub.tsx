@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';\nimport { fetchTrades as fetchTradesAPI } from '../api/apiClient';
 
 interface Trade {
   timestamp: string;
@@ -70,4 +70,4 @@ const TradeFlowPanel: React.FC = () => {
     </div>
   );
 };
-export default TradeFlowPanel;
+export default TradeFlowStub;
