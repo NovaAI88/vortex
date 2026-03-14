@@ -3,25 +3,50 @@ import { fetchPortfolio } from '../api/apiClient';
 
 const POLL_INTERVAL = 4000;
 
-type PaperPosition = { qty: number, avgEntry: number };
-function formatPosTable(positions: Record<string, PaperPosition>) {
-  const rows = Object.entries(positions || {}).filter(([_,p]) => p.qty !== 0);
+type PaperPosition = {
+  symbol: string;
+  side: 'long'|'short'|'flat';
+  qty: number;
+  avgEntry: number;
+  markPrice: number|null;
+  unrealizedPnL: number|null;
+  variantId?: string|null;
+  plannedEntry?: number|null;
+  stopLoss?: number|null;
+  takeProfit?: number|null;
+  lastUpdated?: string;
+};
+function formatPosTable(positions: PaperPosition[]|Record<string, PaperPosition>) {
+  // Support array or old object style
+  const rows = Array.isArray(positions) ? positions : Object.values(positions || {}).filter((p) => p.qty !== 0);
   if (!rows.length) return <div style={{color:'#aaa',padding:'9px 0'}}>No open positions.</div>;
   return (
     <table style={{width:'100%', background:'none', color:'#e2f6ff',fontSize:14}}>
       <thead>
         <tr style={{background:'#1d3346'}}>
           <th>Symbol</th>
+          <th>Side</th>
           <th>Qty</th>
           <th>Entry</th>
+          <th>Current Price</th>
+          <th>Unrealized PnL</th>
+          <th>Variant</th>
+          <th>Stop Loss</th>
+          <th>Take Profit</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map(([sym, pos]) => (
-          <tr key={sym} style={{borderBottom:'1.1px solid #244c56'}}>
-            <td>{sym}</td>
+        {rows.map((pos) => (
+          <tr key={pos.symbol} style={{borderBottom:'1.1px solid #244c56'}}>
+            <td>{pos.symbol}</td>
+            <td>{pos.side}</td>
             <td>{pos.qty}</td>
             <td>{pos.avgEntry}</td>
+            <td>{pos.markPrice != null ? pos.markPrice : '—'}</td>
+            <td>{pos.unrealizedPnL != null ? pos.unrealizedPnL.toFixed(2) : '—'}</td>
+            <td>{pos.variantId || '—'}</td>
+            <td>{pos.stopLoss != null ? pos.stopLoss : '—'}</td>
+            <td>{pos.takeProfit != null ? pos.takeProfit : '—'}</td>
           </tr>
         ))}
       </tbody>
@@ -34,7 +59,7 @@ type PaperPortfolio = {
   balance: number;
   equity: number;
   pnl: number;
-  positions: Record<string, PaperPosition>;
+  positions: PaperPosition[];
 };
 
 const PortfolioPanel: React.FC = () => {
