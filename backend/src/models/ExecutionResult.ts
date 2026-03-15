@@ -4,9 +4,12 @@ export interface ExecutionResult {
   executionRequestId: string;
   riskDecisionId: string;
   actionCandidateId: string;
+  symbol: string;
+  side: 'buy' | 'sell';
   signalId: string;
   strategyId: string;
   price?: number; // Optional: propagated price of execution
+  qty?: number; // Propagated position size
   variantId?: string; // Optional: propagated variant identifier
   status: 'simulated' | 'rejected' | 'failed';
   reason: string;

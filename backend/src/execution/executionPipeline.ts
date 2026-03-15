@@ -28,6 +28,49 @@ export function startExecutionPipeline(bus: EventBus): void {
       producer: 'execution',
       timestamp: new Date().toISOString()
     };
+    // Position sizing for PAPER_TRADING
+    const equity = 100000; // Paper equity TODO: fetch from portfolio
+    const riskFraction = 0.01;
+    if (getEngineMode() === EngineMode.PAPER_TRADING) {
+      if (!request.price || request.price <= 0) {
+        const result = {
+          id: (Math.random() * 1e17).toString(36),
+          executionRequestId: request.id,
+          riskDecisionId: request.riskDecisionId,
+          actionCandidateId: request.actionCandidateId,
+          signalId: request.signalId,
+          strategyId: request.strategyId,
+          price: request.price,
+          qty: undefined,
+          variantId: request.variantId,
+          status: 'rejected',
+          reason: 'Missing or invalid price for position sizing',
+          adapter: 'positionSizer',
+          timestamp: new Date().toISOString(),
+        };
+        try {
+          logExecution(result);
+          if (result.status === 'rejected' || result.status === 'failed') {
+            const { appendAlert } = require('../alerts/alertStore');
+            appendAlert({
+              timestamp: result.timestamp,
+              severity: 'error',
+              source: 'execution',
+              message: result.reason || 'Rejected execution',
+            });
+          }
+        } catch (e) {}
+        try {
+          if (getEngineMode() === EngineMode.PAPER_TRADING) {
+            recordExecution(result);
+          }
+        } catch(e) {}
+        publishExecutionResult(bus, result, 'execution', envelope.correlationId);
+        processedRiskDecisionIds.add(decision.id);
+        return;
+      }
+      request.qty = (equity * riskFraction) / request.price;
+    }
     // Mode gating logic
     const mode = getEngineMode();
     const { getEnginePanelState } = require('../state/engineState');

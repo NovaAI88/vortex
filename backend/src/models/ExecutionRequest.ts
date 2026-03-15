@@ -8,6 +8,7 @@ export interface ExecutionRequest {
   symbol: string;
   side: 'buy' | 'sell';
   price?: number; // Optional: execution price propagated from upstream
+  qty?: number; // Computed position size
   variantId?: string; // Optional: propagated variant identifier
   producer: string;
   timestamp: string;
