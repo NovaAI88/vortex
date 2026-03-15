@@ -10,8 +10,9 @@ export function updatePosition(executionResult: ExecutionResult): PositionSnapsh
   let entry = positions.get(symbol);
   if (!entry) entry = { qty: 0, side: 'buy', lastId: '' };
   if (executionResult.status !== 'simulated') return null;
-  if (executionResult.side === 'buy') entry.qty += 1;
-  if (executionResult.side === 'sell') entry.qty -= 1;
+  if (!executionResult.qty || executionResult.qty <= 0) return null;
+  if (executionResult.side === 'buy') entry.qty += executionResult.qty;
+  if (executionResult.side === 'sell') entry.qty -= executionResult.qty;
   entry.side = executionResult.side;
   entry.lastId = executionResult.id;
   positions.set(symbol, entry);
