@@ -1,6 +1,6 @@
 import express from 'express';
 import { getLatestPositionSnapshot } from '../portfolio/state/positionTracker';
-import { getLatestPortfolioSnapshot } from '../portfolio/state/portfolioTracker';
+import { getPortfolio } from '../portfolio/state/portfolioLedger';
 import orderbookRouter from './orderbook';
 import tradesRouter from './trades';
 import signalsRouter from './signals';
@@ -19,8 +19,8 @@ app.get('/api/position', (req, res) => {
   else res.status(404).json({error: 'No position snapshot available'});
 });
 app.get('/api/portfolio', (req, res) => {
-  const snap = getLatestPortfolioSnapshot();
-  if (snap) res.json(snap);
+  const portfolio = getPortfolio();
+  if (portfolio && portfolio.equity > 0) res.json(portfolio);
   else res.status(404).json({error: 'No portfolio snapshot available'});
 });
 
