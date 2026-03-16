@@ -29,9 +29,16 @@ export function startExecutionPipeline(bus: EventBus): void {
       timestamp: new Date().toISOString()
     };
     // Position sizing for PAPER_TRADING
-    const equity = 100000; // Paper equity TODO: fetch from portfolio
     const riskFraction = 0.01;
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
+      let equity = 100000;
+      try {
+        const { getPortfolio } = require('../portfolio/state/portfolioLedger');
+        const portfolio = getPortfolio();
+        if (portfolio && typeof portfolio.equity === 'number' && isFinite(portfolio.equity) && portfolio.equity > 0) {
+          equity = portfolio.equity;
+        }
+      } catch (e) {}
       if (!request.price || request.price <= 0) {
         const result = {
           id: (Math.random() * 1e17).toString(36),
