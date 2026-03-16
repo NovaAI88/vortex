@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import ChartPanel from '../components/ChartPanel';
+import MarketCards from '../components/MarketCards';
 import OrderBookStub from '../components/OrderBookStub';
 import TradeFlowStub from '../components/TradeFlowStub';
 import AlertPanel from '../components/AlertPanel';
@@ -51,6 +52,7 @@ const DashboardPage: React.FC = () => {
       }}>
         {/* Center workspace: Dominant chart/panels */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <MarketCards />
           <ChartPanel />
           {/* Additive new panels below */}
           <StrategyPerformanceTable />

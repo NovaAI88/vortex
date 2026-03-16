@@ -1,30 +1,81 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 
-const coins = [
-  { symbol: 'BTC', label: 'Bitcoin', price: '66,843.52', change: '+2.3%', color:'#ffd94c', icon:'₿' },
-  { symbol: 'ETH', label: 'Ethereum', price: '3,590.14', change: '-0.4%', color:'#50b5e5', icon:'Ξ' },
-  { symbol: 'SOL', label: 'Solana', price: '177.21', change: '+5.1%', color:'#42f7b0', icon:'◎'}
+type MarketCardItem = {
+  symbol: string;
+  price: number;
+  change24h: number;
+  trend: 'Bullish' | 'Bearish' | 'Sideways';
+  momentum: 'Strong' | 'Moderate' | 'Weak';
+};
+
+// Safe demo data for multi-symbol view.
+// Replace this with backend data later without changing render logic.
+const DEMO_MARKET_DATA: MarketCardItem[] = [
+  { symbol: 'BTCUSDT', price: 68342.55, change24h: 2.8, trend: 'Bullish', momentum: 'Strong' },
+  { symbol: 'ETHUSDT', price: 3642.12, change24h: 1.4, trend: 'Bullish', momentum: 'Moderate' },
+  { symbol: 'SOLUSDT', price: 178.91, change24h: 3.9, trend: 'Bullish', momentum: 'Strong' },
+  { symbol: 'AVAXUSDT', price: 41.27, change24h: -1.2, trend: 'Sideways', momentum: 'Weak' },
+  { symbol: 'DOGEUSDT', price: 0.1824, change24h: 0.9, trend: 'Sideways', momentum: 'Moderate' },
+  { symbol: 'LINKUSDT', price: 19.84, change24h: -0.6, trend: 'Bearish', momentum: 'Weak' },
 ];
 
-const MarketCards: React.FC = () => (
-  <div style={{ display: 'flex', gap: 18, marginBottom: 18 }}>
-    {coins.map(c => (
-      <div key={c.symbol} style={{
-        background: 'linear-gradient(150deg,#161e3f 60%,#243f59 100%)',
-        padding: '20px 26px',
-        borderRadius: 14,
-        minWidth: 165,
-        minHeight: 76,
-        color: c.color,
-        fontWeight: 700,
-        display:'flex',flexDirection:'column',justifyContent:'center',boxShadow:'0 1px 16px #0002'
-      }}>
-        <span style={{ fontSize: 27, fontWeight: 800 }}>{c.icon} <span style={{fontSize:16,color:'#b1dafe',marginLeft:7}}>{c.symbol}</span></span>
-        <span style={{ fontWeight: 600, fontSize: 19, color:'#f9f9f9',margin:'6px 0 2px 0',letterSpacing:'-0.5px'}}>{c.price}</span>
-        <span style={{ fontSize: 15, fontWeight: 500, color: (c.change[0]==='+'?'#7fee82':'#f28f8f')}}>{c.change}</span>
-      </div>
-    ))}
-  </div>
-);
+const formatPrice = (price: number) => {
+  if (price < 1) return price.toFixed(4);
+  if (price < 100) return price.toFixed(2);
+  return price.toLocaleString(undefined, { maximumFractionDigits: 2 });
+};
+
+const pillStyle = (label: string) => ({
+  fontSize: 11,
+  fontWeight: 700,
+  padding: '4px 8px',
+  borderRadius: 999,
+  border: '1px solid #2e374c',
+  color: label === 'Bullish' || label === 'Strong' ? '#7fee82' : label === 'Bearish' || label === 'Weak' ? '#ff9f9f' : '#e8cc77',
+  background: '#1a2030',
+  letterSpacing: '.25px',
+});
+
+const MarketCards: React.FC = () => {
+  const marketData = useMemo(() => DEMO_MARKET_DATA, []);
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(6, minmax(130px, 1fr))',
+      gap: 12,
+      marginBottom: 12,
+    }}>
+      {marketData.map((item) => {
+        const positive = item.change24h >= 0;
+        return (
+          <div
+            key={item.symbol}
+            style={{
+              background: 'linear-gradient(160deg,#171d2b 60%,#222c42 100%)',
+              border: '1px solid #2a3247',
+              borderRadius: 12,
+              padding: '10px 11px',
+              boxShadow: '0 1px 10px #00000030',
+              minHeight: 108,
+              color: '#dce8ff',
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '.3px', color: '#a7c6f2' }}>{item.symbol}</div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginTop: 6, color: '#f4f7ff' }}>${formatPrice(item.price)}</div>
+            <div style={{ fontSize: 13, marginTop: 3, color: positive ? '#7fee82' : '#ff9f9f', fontWeight: 700 }}>
+              {positive ? '+' : ''}{item.change24h.toFixed(2)}%
+            </div>
+
+            <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
+              <span style={pillStyle(item.trend)}>{item.trend}</span>
+              <span style={pillStyle(item.momentum)}>{item.momentum}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default MarketCards;
