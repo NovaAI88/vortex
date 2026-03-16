@@ -14,6 +14,9 @@ import { fetchStatus, fetchPortfolio } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
+import SectionCard from '../components/ui/SectionCard';
+import InsightCard from '../components/ui/InsightCard';
+import HealthBadge from '../components/ui/HealthBadge';
 
 const DashboardPage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
@@ -42,6 +45,8 @@ const DashboardPage: React.FC = () => {
   const equity = portfolio?.equity ?? '-';
   const dailyPnl = portfolio?.pnl ?? '-';
   const healthState = status?.status === 'ok' ? 'healthy' : 'warning';
+  const engineMode = status?.mode || 'PAPER';
+  const signalCount = 9;
 
   return (
     <div>
@@ -59,40 +64,71 @@ const DashboardPage: React.FC = () => {
         <KpiCard label="Daily PnL" value={dailyPnl} tone={typeof dailyPnl === 'number' ? (dailyPnl >= 0 ? 'positive' : 'negative') : 'neutral'} />
         <KpiCard label="Active Strategies" value={3} />
         <KpiCard label="Risk Utilization" value="37%" />
+        <KpiCard label="Engine Mode" value={engineMode} />
+        <KpiCard label="Signal Count" value={signalCount} />
       </KpiStrip>
 
-      {/* Top market overview strip */}
       <section style={{ marginBottom: 12 }}>
         <MarketCards />
       </section>
 
-      {/* Main grid w/ terminal layout */}
-      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) 390px', minHeight: 640, alignItems: 'start' }}>
-        {/* Center workspace: Dominant chart/panels */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 390px)', alignItems: 'start' }}>
+        <SectionCard title="Live Price & Trade Overlay">
           <ChartPanel />
+        </SectionCard>
 
-          <div className="ui-card" style={{ padding: '14px 16px', marginBottom: 0 }}>
-            <StrategyPerformanceTable />
+        <SectionCard
+          title="Operator Control Stack"
+          actionSlot={<HealthBadge state={healthState} label={healthState === 'healthy' ? 'SYSTEM HEALTHY' : 'CHECK SYSTEM'} />}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <OperatorControlsPanel />
+            <EngineStatusPanel />
           </div>
-          <div className="ui-card" style={{ padding: '14px 16px', marginBottom: 0 }}>
-            <StrategyWeightsPanel />
-          </div>
+        </SectionCard>
+      </div>
 
-          <div className="ui-bottom-row" style={{ marginBottom: 2 }}>
-            <MarketIntelPanel />
-            <NewsPanel />
-          </div>
-        </section>
+      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', marginTop: 12 }}>
+        <SectionCard title="Strategy Health & Performance">
+          <StrategyPerformanceTable />
+        </SectionCard>
+        <SectionCard title="Strategy Weights & Allocation">
+          <StrategyWeightsPanel />
+        </SectionCard>
+      </div>
 
-        {/* Right compact operations/info column */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 310, maxWidth: 420 }}>
-          <OperatorControlsPanel />
+      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
+        <SectionCard title="Market Intelligence Feed">
+          <MarketIntelPanel />
+        </SectionCard>
+        <SectionCard title="Market News & Narrative">
+          <NewsPanel />
+        </SectionCard>
+      </div>
+
+      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
+        <SectionCard title="Order Book">
           <OrderBookStub />
+        </SectionCard>
+        <SectionCard title="Trade Flow">
           <TradeFlowStub />
+        </SectionCard>
+        <SectionCard title="Alert Summary">
           <AlertPanel />
-          <EngineStatusPanel />
-        </aside>
+        </SectionCard>
+      </div>
+
+      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
+        <InsightCard
+          title="AI Operator Context"
+          text="Execution remains in paper mode with resilient fallback market feeds active. Monitor strategy confidence and risk utilization before enabling tighter automation."
+          source="AETHER runtime telemetry"
+        />
+        <InsightCard
+          title="Narrative Bias"
+          text="Current flow suggests moderate bullish continuation with intermittent volatility compression. Watch for sentiment/news divergence against momentum signals."
+          source="Market intelligence synthesis"
+        />
       </div>
     </div>
   );
