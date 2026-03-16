@@ -1,13 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { EventBus } from '../../src/events/eventBus.ts';
-import { EVENT_TOPICS } from '../../src/events/topics.ts';
-import { publishMarketEvent } from '../../src/ingestion/publishers/marketEventPublisher.ts';
-import { startProcessingPipeline } from '../../src/processing/processingPipeline.ts';
-import { startIntelligencePipeline } from '../../src/intelligence/intelligencePipeline.ts';
-import { startDecisionPipeline } from '../../src/decision/decisionPipeline.ts';
-import { startRiskPipeline } from '../../src/risk/riskPipeline.ts';
-import { startExecutionPipeline } from '../../src/execution/executionPipeline.ts';
-import { startPortfolioPipeline } from '../../src/portfolio/portfolioPipeline.ts';
+import { EventBus } from '../../src/events/eventBus';
+import { EVENT_TOPICS } from '../../src/events/topics';
+import { publishMarketEvent } from '../../src/ingestion/publishers/marketEventPublisher';
+import { startProcessingPipeline } from '../../src/processing/processingPipeline';
+import { startIntelligencePipeline } from '../../src/intelligence/intelligencePipeline';
+import { startDecisionPipeline } from '../../src/decision/decisionPipeline';
+import { startRiskPipeline } from '../../src/risk/riskPipeline';
+import { startExecutionPipeline } from '../../src/execution/executionPipeline';
+import { startPortfolioPipeline } from '../../src/portfolio/portfolioPipeline';
+import { resetPortfolio } from '../../src/portfolio/state/portfolioLedger';
+import { resetRiskState } from '../../src/risk/globalRiskController';
+import { setEngineMode, EngineMode } from '../../src/execution/mode/executionMode';
+import { resumeEngine } from '../../src/state/engineState';
 
 const FIXTURE_EVENTS = [
   { price: 9000, movingAvg: 9500, symbol: 'BTCUSDT', side: 'buy' },
@@ -34,6 +38,10 @@ function asValidMarketEvent(fixture, i) {
 
 describe('Paper Trading Validation', () => {
   it('should replay fixed event fixture and produce deterministic pipeline results', async () => {
+    resetPortfolio();
+    resetRiskState();
+    setEngineMode(EngineMode.PAPER_TRADING);
+    resumeEngine();
     const bus = new EventBus();
     startProcessingPipeline(bus);
     startIntelligencePipeline(bus);
@@ -52,9 +60,10 @@ describe('Paper Trading Validation', () => {
     bus.subscribe(EVENT_TOPICS.INTELLIGENCE_SIGNAL, () => { tradeSignals++; });
     bus.subscribe(EVENT_TOPICS.DECISION_CANDIDATE, () => { actionCandidates++; });
     bus.subscribe(EVENT_TOPICS.RISK_DECISION, () => { riskDecisions++; });
-    bus.subscribe(EVENT_TOPICS.EXECUTION_RESULT, () => { receivedExecs++; });
-    bus.subscribe(EVENT_TOPICS.POSITION_SNAPSHOT, () => { receivedPositions++; });
-    bus.subscribe(EVENT_TOPICS.PORTFOLIO_SNAPSHOT, () => { receivedPortfolios++; });
+    // Subscribe to canonical downstream topic strings emitted by current publishers
+    bus.subscribe('execution.result', () => { receivedExecs++; });
+    bus.subscribe('position.snapshot', () => { receivedPositions++; });
+    bus.subscribe('portfolio.snapshot', () => { receivedPortfolios++; });
     FIXTURE_EVENTS.forEach((fixture, i) => {
       const evt = asValidMarketEvent(fixture, i);
       publishMarketEvent(bus, evt, 'fixture');

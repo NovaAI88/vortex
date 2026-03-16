@@ -5,6 +5,7 @@ import { mockExchangeAdapter } from './adapters/mockExchangeAdapter';
 import { publishExecutionResult } from './publishers/executionResultPublisher';
 import { ExecutionRequest } from '../models/ExecutionRequest';
 import { getEngineMode, EngineMode } from './mode/executionMode';
+import { getEnginePanelState } from '../state/engineState';
 import { logExecution } from './executionLog';
 import { recordExecution } from '../portfolio/state/portfolioLedger';
 
@@ -90,7 +91,6 @@ export function startExecutionPipeline(bus: EventBus): void {
     }
     // Mode gating logic
     const mode = getEngineMode();
-    const { getEnginePanelState } = require('../state/engineState');
     if (mode === EngineMode.OFF || getEnginePanelState().paused) {
       // Drop execution request
       return;

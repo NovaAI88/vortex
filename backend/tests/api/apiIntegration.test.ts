@@ -17,8 +17,10 @@ describe('API Endpoints', () => {
     const res = await request(app).get('/api/position');
     expect(res.status).toBe(404);
   });
-  it('should 404 for /api/portfolio if empty', async () => {
+  it('should return ledger-backed /api/portfolio snapshot', async () => {
     const res = await request(app).get('/api/portfolio');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+    expect(typeof res.body.equity).toBe('number');
+    expect(Array.isArray(res.body.positions)).toBe(true);
   });
 });

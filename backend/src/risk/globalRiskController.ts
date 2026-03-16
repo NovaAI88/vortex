@@ -53,3 +53,10 @@ export function getStatus() {
     peakEquity: peakEquity === undefined ? null : Number(peakEquity.toFixed(2))
   };
 }
+
+export function resetRiskState() {
+  peakEquity = undefined;
+  killSwitch = false;
+  lastDailyCheck = '';
+  dailyStartEquity = undefined;
+}
