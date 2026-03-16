@@ -19,7 +19,7 @@ const AlertsPage: React.FC = () => {
         const [s, rk] = await Promise.all([fetchStatus(), fetchRisks()]);
         if (!mounted) return;
         setStatus(s);
-        setRisks(Array.isArray(rk) ? rk : []);
+        setRisks(Array.isArray(rk) ? rk.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
@@ -55,7 +55,7 @@ const AlertsPage: React.FC = () => {
       <SectionCard title="Live Risk Feed">
         {risks.length ? (
           <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-            {risks.slice(0, 16).map((r, i) => <div key={i}>{r.symbol || '—'} · {r.side || '—'} · {r.variantId || 'default'} · {r.blockedBy || (r.approved ? 'approved' : 'blocked')}</div>)}
+            {risks.slice(0, 16).map((r, i) => <div key={i}>{r?.symbol ?? '—'} · {r?.side ?? '—'} · {r?.variantId || 'default'} · {r?.blockedBy || (r?.approved ? 'approved' : 'blocked')}</div>)}
           </div>
         ) : <div style={{ color: '#9cb1d3' }}>No alerts emitted.</div>}
       </SectionCard>

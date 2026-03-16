@@ -19,7 +19,7 @@ const NewsIntelligencePage: React.FC = () => {
         const [s, sig] = await Promise.all([fetchStatus(), fetchSignals()]);
         if (!mounted) return;
         setStatus(s);
-        setSignals(Array.isArray(sig) ? sig : []);
+        setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');

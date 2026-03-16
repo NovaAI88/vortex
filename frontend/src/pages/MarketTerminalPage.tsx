@@ -31,7 +31,7 @@ const MarketTerminalPage: React.FC = () => {
         if (!mounted) return;
         setStatus(s);
         setOrderbook(ob);
-        setTrades(Array.isArray(tr) ? tr : []);
+        setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');

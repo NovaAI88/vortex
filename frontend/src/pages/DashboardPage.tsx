@@ -52,11 +52,11 @@ const DashboardPage: React.FC = () => {
         setStatus(s);
         setPortfolio(p);
         setPosition(pos);
-        setSignals(Array.isArray(sig) ? sig : []);
-        setDecisions(Array.isArray(dec) ? dec : []);
-        setTrades(Array.isArray(tr) ? tr : []);
-        setOrderbook(ob);
-        setRisks(Array.isArray(rk) ? rk : []);
+        setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
+        setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
+        setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
+        setOrderbook(ob && typeof ob === 'object' ? ob : null);
+        setRisks(Array.isArray(rk) ? rk.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
@@ -114,7 +114,7 @@ const DashboardPage: React.FC = () => {
           {signals.length ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
               {signals.slice(0, 5).map((s, i) => (
-                <div key={i}>{s.symbol} · {String(s.signalType || '—').toUpperCase()} · {s.variantId || 'default'} · conf {typeof s.confidence === 'number' ? (s.confidence * 100).toFixed(0) : '—'}%</div>
+                <div key={i}>{s?.symbol ?? '—'} · {String(s?.signalType || '—').toUpperCase()} · {s?.variantId || 'default'} · conf {typeof s?.confidence === 'number' ? (s.confidence * 100).toFixed(0) : '—'}%</div>
               ))}
             </div>
           ) : <div style={{ color: '#97a9c8' }}>No signals available.</div>}
@@ -124,7 +124,7 @@ const DashboardPage: React.FC = () => {
           {decisions.length ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
               {decisions.slice(0, 5).map((d, i) => (
-                <div key={i}>{d.symbol || '—'} · {d.side || '—'} · {d.variantId || 'default'} · {d.approved ? 'approved' : 'blocked'}</div>
+                <div key={i}>{d?.symbol ?? '—'} · {d?.side ?? '—'} · {d?.variantId || 'default'} · {d?.approved ? 'approved' : 'blocked'}</div>
               ))}
             </div>
           ) : <div style={{ color: '#97a9c8' }}>No decisions available.</div>}
@@ -134,7 +134,7 @@ const DashboardPage: React.FC = () => {
           {trades.length ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
               {trades.slice(0, 5).map((t, i) => (
-                <div key={i}>{t.symbol} · {String(t.side || '—').toUpperCase()} · qty {fmt(t.qty)} · {fmt(t.price)}</div>
+                <div key={i}>{t?.symbol ?? '—'} · {String(t?.side || '—').toUpperCase()} · qty {fmt(t?.qty)} · {fmt(t?.price)}</div>
               ))}
             </div>
           ) : <div style={{ color: '#97a9c8' }}>No trades available.</div>}
@@ -158,7 +158,7 @@ const DashboardPage: React.FC = () => {
           {risks.length ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
               {risks.slice(0, 5).map((r, i) => (
-                <div key={i}>{r.symbol || '—'} · {r.side || '—'} · {r.blockedBy || (r.approved ? 'approved' : 'blocked')}</div>
+                <div key={i}>{r?.symbol ?? '—'} · {r?.side ?? '—'} · {r?.blockedBy || (r?.approved ? 'approved' : 'blocked')}</div>
               ))}
             </div>
           ) : <div style={{ color: '#97a9c8' }}>No risk records available.</div>}

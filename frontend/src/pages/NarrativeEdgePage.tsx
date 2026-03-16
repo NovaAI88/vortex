@@ -20,8 +20,8 @@ const NarrativeEdgePage: React.FC = () => {
         const [s, sig, dec] = await Promise.all([fetchStatus(), fetchSignals(), fetchDecisions()]);
         if (!mounted) return;
         setStatus(s);
-        setSignals(Array.isArray(sig) ? sig : []);
-        setDecisions(Array.isArray(dec) ? dec : []);
+        setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
+        setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');

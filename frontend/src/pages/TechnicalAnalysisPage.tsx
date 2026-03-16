@@ -21,7 +21,7 @@ const TechnicalAnalysisPage: React.FC = () => {
         if (!mounted) return;
         setStatus(s);
         setOrderbook(ob);
-        setTrades(Array.isArray(tr) ? tr : []);
+        setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
@@ -82,7 +82,7 @@ const TechnicalAnalysisPage: React.FC = () => {
         <SectionCard title="Recent Prints">
           {trades.length ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
-              {trades.slice(0, 10).map((t, i) => <div key={i}>{t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : '—'} · {String(t.side || '—').toUpperCase()} · {t.price ?? '—'} · qty {t.qty ?? '—'}</div>)}
+              {trades.slice(0, 10).map((t, i) => <div key={i}>{t?.timestamp ? new Date(t.timestamp).toLocaleTimeString() : '—'} · {String(t?.side || '—').toUpperCase()} · {t?.price ?? '—'} · qty {t?.qty ?? '—'}</div>)}
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No trade prints.</div>}
         </SectionCard>

@@ -24,8 +24,8 @@ const SentimentPage: React.FC = () => {
         ]);
         if (!mounted) return;
         setStatus(s);
-        setSignals(Array.isArray(sig) ? sig : []);
-        setTrades(Array.isArray(tr) ? tr : []);
+        setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
+        setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
@@ -77,14 +77,14 @@ const SentimentPage: React.FC = () => {
         <SectionCard title="Recent Signals Input">
           {signals.length ? (
             <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-              {signals.slice(0, 8).map((s, i) => <div key={i}>{s.symbol} · {String(s.signalType || '—').toUpperCase()} · {s.variantId || 'default'}</div>)}
+              {signals.slice(0, 8).map((s, i) => <div key={i}>{s?.symbol ?? '—'} · {String(s?.signalType || '—').toUpperCase()} · {s?.variantId || 'default'}</div>)}
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No signals available.</div>}
         </SectionCard>
         <SectionCard title="Recent Execution Output">
           {trades.length ? (
             <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-              {trades.slice(0, 8).map((t, i) => <div key={i}>{t.symbol} · {String(t.side || '—').toUpperCase()} · {t.variantId || 'default'}</div>)}
+              {trades.slice(0, 8).map((t, i) => <div key={i}>{t?.symbol ?? '—'} · {String(t?.side || '—').toUpperCase()} · {t?.variantId || 'default'}</div>)}
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No trades available.</div>}
         </SectionCard>

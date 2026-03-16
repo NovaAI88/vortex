@@ -33,10 +33,10 @@ const StrategyPage: React.FC = () => {
         ]);
         if (!mounted) return;
         setStatus(s);
-        setPerformance(Array.isArray(perfRes) ? perfRes : []);
+        setPerformance(Array.isArray(perfRes) ? perfRes.filter(Boolean) : []);
         setWeights(weightsRes && typeof weightsRes === 'object' ? weightsRes : {});
-        setSignals(Array.isArray(signalRes) ? signalRes : []);
-        setDecisions(Array.isArray(decisionRes) ? decisionRes : []);
+        setSignals(Array.isArray(signalRes) ? signalRes.filter(Boolean) : []);
+        setDecisions(Array.isArray(decisionRes) ? decisionRes.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');

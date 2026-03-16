@@ -34,8 +34,8 @@ const PortfolioPage: React.FC = () => {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions : [];
-  const trades = Array.isArray(portfolio?.trades) ? portfolio.trades : [];
+  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions.filter(Boolean) : [];
+  const trades = Array.isArray(portfolio?.trades) ? portfolio.trades.filter(Boolean) : [];
 
   return (
     <div>
@@ -63,7 +63,7 @@ const PortfolioPage: React.FC = () => {
         <SectionCard title="Open Positions">
           {positions.length ? (
             <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-              {positions.map((p: any, i: number) => <div key={i}>{p.symbol} · {p.side} · qty {p.qty} · avg {fmt(p.avgEntry)} · var {p.variantId || 'default'}</div>)}
+              {positions.map((p: any, i: number) => <div key={i}>{p?.symbol ?? '—'} · {p?.side ?? '—'} · qty {p?.qty ?? '—'} · avg {fmt(p?.avgEntry)} · var {p?.variantId || 'default'}</div>)}
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No open positions.</div>}
         </SectionCard>
@@ -71,7 +71,7 @@ const PortfolioPage: React.FC = () => {
         <SectionCard title="Recent Trades">
           {trades.length ? (
             <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-              {trades.slice(0, 12).map((t: any, i: number) => <div key={i}>{t.symbol} · {String(t.side || '—').toUpperCase()} · qty {fmt(t.qty)} · {fmt(t.price)} · {t.variantId || 'default'}</div>)}
+              {trades.slice(0, 12).map((t: any, i: number) => <div key={i}>{t?.symbol ?? '—'} · {String(t?.side || '—').toUpperCase()} · qty {fmt(t?.qty)} · {fmt(t?.price)} · {t?.variantId || 'default'}</div>)}
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No trades available.</div>}
         </SectionCard>

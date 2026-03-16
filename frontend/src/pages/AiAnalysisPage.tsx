@@ -27,9 +27,9 @@ const AiAnalysisPage: React.FC = () => {
         ]);
         if (!mounted) return;
         setStatus(s);
-        setSignals(Array.isArray(sig) ? sig : []);
-        setDecisions(Array.isArray(dec) ? dec : []);
-        setRisks(Array.isArray(rk) ? rk : []);
+        setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
+        setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
+        setRisks(Array.isArray(rk) ? rk.filter(Boolean) : []);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
