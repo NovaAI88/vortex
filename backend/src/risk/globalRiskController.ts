@@ -9,7 +9,7 @@ let killSwitch = false;
 let lastDailyCheck = '';
 let dailyStartEquity: number|undefined = undefined;
 
-export function checkLimits(): { allowed: boolean, blockedBy?: string } {
+export function checkLimits(candidate?: { side?: 'buy' | 'sell'; symbol?: string; variantId?: string }): { allowed: boolean, blockedBy?: string } {
   const p = getPortfolio();
   // Defensive: fall back if portfolio is missing/broken
   const equity = (p && typeof p.equity === 'number' && isFinite(p.equity) && p.equity > 0) ? p.equity : 10000;
@@ -38,7 +38,18 @@ export function checkLimits(): { allowed: boolean, blockedBy?: string } {
 
   if (drawdown >= maxDrawdownPercent) { killSwitch = true; return { allowed: false, blockedBy: 'drawdown' }; }
   if (dailyLoss >= dailyLossLimitPercent) { killSwitch = true; return { allowed: false, blockedBy: 'daily_loss' }; }
-  if (maxPosPercent >= maxPositionSizePercent) return { allowed: false, blockedBy: 'max_position' };
+
+  const isReducingTrade = (() => {
+    if (!candidate || !candidate.side || !candidate.symbol || !Array.isArray((p as any)?.positions)) return false;
+    const variantId = candidate.variantId || null;
+    const pos = (p as any).positions.find((x: any) => x.symbol === candidate.symbol && (variantId ? (x.variantId || null) === variantId : true));
+    if (!pos || typeof pos.qty !== 'number') return false;
+    if (candidate.side === 'sell' && pos.qty > 0) return true; // reduce/close long
+    if (candidate.side === 'buy' && pos.qty < 0) return true; // reduce/close short
+    return false;
+  })();
+
+  if (maxPosPercent >= maxPositionSizePercent && !isReducingTrade) return { allowed: false, blockedBy: 'max_position' };
   if (killSwitch) return { allowed: false, blockedBy: 'killswitch_active' };
   return { allowed: true };
 }
