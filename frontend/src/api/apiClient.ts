@@ -93,6 +93,23 @@ export async function fetchAlerts() {
   return resp.json();
 }
 
+export async function fetchOperatorState() {
+  const resp = await fetch(`${API_BASE}/api/operator/state`);
+  if (!resp.ok) throw new Error('Failed to fetch operator state');
+  return resp.json();
+}
+
+export async function startTrading() {
+  const resp = await fetch(`${API_BASE}/api/operator/start`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to start trading');
+  return resp.json();
+}
+
+export async function pauseTrading() {
+  const resp = await fetch(`${API_BASE}/api/operator/pause`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to pause trading');
+  return resp.json();
+}
 
 export async function fetchLegacyStatus() {
   const resp = await fetch(`${API_BASE}/status`);
