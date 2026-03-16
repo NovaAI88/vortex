@@ -14,19 +14,17 @@ const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }, [location.pathname]);
 
   return (
-    <div style={{ background: "#0f1723", minHeight: "100vh", fontFamily: 'Inter, Segoe UI, Arial', color:'#eaf1fa' }}>
+    <div style={{ background: '#0f1723', minHeight: '100vh', fontFamily: 'Inter, Segoe UI, Arial', color: '#eaf1fa' }}>
       <BrandHeader />
-      <div style={{ boxShadow: "0 1.8px 11px #0210293a", position:"relative", zIndex:15 }}>
+      <div style={{ boxShadow: '0 1.8px 11px #0210293a', position: 'relative', zIndex: 15 }}>
         <TickerTape />
       </div>
-      <div style={{ display: "flex", flexDirection: "row", minHeight: "92vh" }}>
-        <aside style={{ width: 85, minHeight: "100%", boxShadow: "2px 0 14px #1a254111", background: "#161f2e", borderRight: '2.5px solid #23355b', position:'relative',zIndex:21 }}>
+      <div style={{ display: 'flex', flexDirection: 'row', minHeight: '92vh' }}>
+        <aside style={{ width: 248, minHeight: '100%', boxShadow: '2px 0 14px #1a254111', background: '#161f2e', borderRight: '2.5px solid #23355b', position: 'relative', zIndex: 21 }}>
           <SidebarNav />
         </aside>
-        <main style={{ flex: 1, minHeight: "100%", background: "#0f151f" }}>
-          <div className="ui-page-shell">
-            {children}
-          </div>
+        <main style={{ flex: 1, minHeight: '100%', background: '#0f151f' }}>
+          <div className="ui-page-shell">{children}</div>
         </main>
       </div>
       <CommandPaletteStub />

@@ -11,6 +11,8 @@ import NarrativeEdgePage from './pages/NarrativeEdgePage';
 import PortfolioPage from './pages/PortfolioPage';
 import AlertsPage from './pages/AlertsPage';
 import BacktestPage from './pages/BacktestPage';
+import StatusPage from './pages/StatusPage';
+import StrategyPage from './pages/StrategyPage';
 
 function App() {
   return (
@@ -26,8 +28,11 @@ function App() {
           <Route path="/narrative" element={<NarrativeEdgePage />} />
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/strategy" element={<StrategyPage />} />
+          <Route path="/strategies" element={<Navigate to="/strategy" replace />} />
+          <Route path="/status" element={<StatusPage />} />
           <Route path="/backtest" element={<BacktestPage />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </PageLayout>
     </Router>
