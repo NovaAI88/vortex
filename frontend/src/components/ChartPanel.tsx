@@ -19,10 +19,12 @@ const ChartPanel: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
+        const API_BASE = 'http://localhost:3000';
         const [pResp, tResp] = await Promise.all([
-          fetch(window.location.origin.replace(':3001', ':3000') + '/api/market/price-history'),
-          fetch(window.location.origin.replace(':3001', ':3000') + '/api/portfolio/paper')
+          fetch(`${API_BASE}/api/market/price-history`),
+          fetch(`${API_BASE}/api/portfolio/paper`)
         ]);
+        if (!pResp.ok || !tResp.ok) throw new Error('chart-endpoint-unavailable');
         const pricePts = (await pResp.json()) || [];
         const tradeData = ((await tResp.json()) || {}).trades || [];
         if (active) { setPrices(pricePts); setTrades(tradeData); }
@@ -56,7 +58,7 @@ const ChartPanel: React.FC = () => {
   }).filter(Boolean);
 
   return (
-    <div style={{width:'100%',background:'#181e29',borderRadius:14,padding:'16px 7px 7px 7px',marginBottom:16,boxShadow:'0 1px 16px #19213680'}}>
+    <div style={{width:'100%',background:'#181e29',borderRadius:14,padding:'16px 10px 8px',marginBottom:0,boxShadow:'0 1px 16px #19213680'}}>
       <div style={{fontWeight:700,margin:'0 0 9px 11px',fontSize:15.7,color:'#aae9ff'}}>BTCUSDT (Binance) Live Price</div>
       <ResponsiveContainer width="100%" height={387}>
         <LineChart data={prices}

@@ -37,9 +37,9 @@ const DashboardPage: React.FC = () => {
   if (error) return <div style={{color:'#f95e5e',fontWeight:700,padding:60}}>Error: {error}</div>;
 
   return (
-    <div style={{ width: '98vw', maxWidth: 1800, margin: '0 auto', padding: '8px 0' }}>
+    <div style={{ width: '100%', maxWidth: 1720, margin: '0 auto', padding: '10px 10px 8px' }}>
       {/* Top market overview strip */}
-      <section style={{ marginBottom: 14 }}>
+      <section style={{ marginBottom: 12 }}>
         <MarketCards />
       </section>
 
@@ -47,29 +47,29 @@ const DashboardPage: React.FC = () => {
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) 390px',
-        gap: '22px',
+        gap: '16px',
         minHeight: 640,
         alignItems: 'start',
       }}>
         {/* Center workspace: Dominant chart/panels */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
           <ChartPanel />
 
-          <div className="ui-card" style={{ padding: '14px 16px' }}>
+          <div className="ui-card" style={{ padding: '14px 16px', marginBottom: 0 }}>
             <StrategyPerformanceTable />
           </div>
-          <div className="ui-card" style={{ padding: '14px 16px' }}>
+          <div className="ui-card" style={{ padding: '14px 16px', marginBottom: 0 }}>
             <StrategyWeightsPanel />
           </div>
 
-          <div style={{ display: 'flex', gap: 14, marginBottom: 4, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 12, marginBottom: 2, alignItems: 'stretch' }}>
             <MarketIntelPanel />
             <NewsPanel />
           </div>
         </section>
 
         {/* Right compact operations/info column */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 310, maxWidth: 420 }}>
+        <aside style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 310, maxWidth: 420 }}>
           <OperatorControlsPanel />
           <OrderBookStub />
           <TradeFlowStub />
