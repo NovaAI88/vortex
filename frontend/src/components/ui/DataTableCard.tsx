@@ -8,9 +8,9 @@ type DataTableCardProps = {
 
 const DataTableCard: React.FC<DataTableCardProps> = ({ title, children, actionSlot }) => {
   return (
-    <div className="ui-card" style={{ marginBottom: 0, padding: '14px 16px' }}>
+    <div className="ui-card ui-table-card" style={{ marginBottom: 0, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 15, color: '#cde4ff', fontWeight: 700 }}>{title}</div>
+        <div style={{ fontSize: 15, color: '#cde4ff', fontWeight: 700, letterSpacing: '0.01em' }}>{title}</div>
         {actionSlot ? <div>{actionSlot}</div> : null}
       </div>
       <div style={{ overflowX: 'auto' }}>{children}</div>

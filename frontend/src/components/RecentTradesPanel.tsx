@@ -31,20 +31,20 @@ const RecentTradesPanel: React.FC = () => {
     return () => { mounted = false; };
   }, []);
 
-  if (loading) return <div style={{padding:10}}>Loading trades…</div>;
-  if (error) return <div style={{color:'#f97',padding:10}}>No recent trades.</div>;
-  if (!trades.length) return <div style={{color:'#8b9aad',padding:10}}>None yet. Simulate a trade to see history.</div>;
+  if (loading) return <div style={{padding:10, color:'#9cb6d8'}}>Loading trades…</div>;
+  if (error) return <div style={{color:'#f9bf97',padding:10}}>Trade feed unavailable.</div>;
+  if (!trades.length) return <div style={{color:'#8b9aad',padding:10}}>No recent trades yet. Execute a simulated trade to populate history.</div>;
 
   return (
-    <div style={{padding:15,background:'#124d53',borderRadius:13,margin:'16px 0',boxShadow:'0 1px 6px #113d3a13',minWidth:260}}>
-      <div style={{fontWeight:800,fontSize:'1.11rem',color:'#9fffd2',marginBottom:10}}>Recent Simulated Trades</div>
-      <table style={{width:'100%',fontSize:14,color:'#e1feff',background:'none'}}>
+    <div className="ui-card" style={{padding:16,margin:'16px 0',minWidth:260}}>
+      <div style={{fontWeight:700,fontSize:15,color:'#cde4ff',marginBottom:10}}>Recent Simulated Trades</div>
+      <table className="ui-table" style={{width:'100%',background:'none'}}>
         <thead>
           <tr><th>Time</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th></tr>
         </thead>
         <tbody>
           {trades.map((t,i) => (
-            <tr key={i} style={{borderBottom:'1.1px solid #234'}}>
+            <tr key={i}>
               <td>{new Date(t.timestamp).toLocaleTimeString()}</td>
               <td>{t.symbol}</td>
               <td>{t.side}</td>

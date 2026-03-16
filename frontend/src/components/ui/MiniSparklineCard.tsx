@@ -33,10 +33,10 @@ const MiniSparklineCard: React.FC<MiniSparklineCardProps> = ({
   const path = buildPath(points, width, height);
 
   return (
-    <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
+    <div className="ui-card ui-sparkline-card" style={{ marginBottom: 0, padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: '#8fa3c8' }}>{title}</span>
-        <span style={{ fontWeight: 700, color: '#eaf1ff' }}>{value}</span>
+        <span style={{ fontSize: 12, color: '#8fa3c8', fontWeight: 600 }}>{title}</span>
+        <span style={{ fontWeight: 800, color: '#eaf1ff', fontSize: 16 }}>{value}</span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="50" preserveAspectRatio="none">
         <path d={path} fill="none" stroke={stroke} strokeWidth="2.2" />

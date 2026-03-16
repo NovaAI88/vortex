@@ -17,13 +17,12 @@ type PaperPosition = {
   lastUpdated?: string;
 };
 function formatPosTable(positions: PaperPosition[]|Record<string, PaperPosition>) {
-  // Support array or old object style
   const rows = Array.isArray(positions) ? positions : Object.values(positions || {}).filter((p) => p.qty !== 0);
-  if (!rows.length) return <div style={{color:'#aaa',padding:'9px 0'}}>No open positions.</div>;
+  if (!rows.length) return <div style={{color:'#9cb0cc',padding:'9px 0'}}>No open positions currently.</div>;
   return (
-    <table style={{width:'100%', background:'none', color:'#e2f6ff',fontSize:14}}>
+    <table className="ui-table" style={{width:'100%', background:'none'}}>
       <thead>
-        <tr style={{background:'#1d3346'}}>
+        <tr>
           <th>Symbol</th>
           <th>Side</th>
           <th>Qty</th>
@@ -37,7 +36,7 @@ function formatPosTable(positions: PaperPosition[]|Record<string, PaperPosition>
       </thead>
       <tbody>
         {rows.map((pos, idx) => (
-          <tr key={pos.symbol + '-' + idx} style={{borderBottom:'1.1px solid #244c56'}}>
+          <tr key={pos.symbol + '-' + idx}>
             <td>{pos.symbol}</td>
             <td>{pos.side}</td>
             <td>{pos.qty}</td>
@@ -85,20 +84,20 @@ const PortfolioPanel: React.FC = () => {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  if (loading) return <div style={{padding:13}}>Loading portfolio…</div>;
-  if (error && !portfolio) return <div style={{color:'#f97',padding:10}}>No paper trades yet.</div>;
-  if (!portfolio) return <div style={{color:'#ccc',padding:10}}>No portfolio data.</div>;
+  if (loading) return <div style={{padding:13, color:'#9cb6d8'}}>Loading portfolio…</div>;
+  if (error && !portfolio) return <div style={{color:'#f9bf97',padding:10}}>Portfolio stream unavailable.</div>;
+  if (!portfolio) return <div style={{color:'#9cb0cc',padding:10}}>No portfolio data available.</div>;
 
   return (
-    <div style={{padding:17,background:'#103a3b',borderRadius:13,marginBottom:14,boxShadow:'0 1px 8px #143d3a18',minWidth:280}}>
-      <div style={{fontWeight:800,fontSize:'1.15rem',color:'#9fffd2',marginBottom:10}}>Paper Trading Portfolio</div>
-      {error && <div style={{color:'#f97',marginBottom:7}}>Refresh error: {error}</div>}
+    <div className="ui-card" style={{padding:16,marginBottom:0,minWidth:280}}>
+      <div style={{fontWeight:700,fontSize:15,color:'#cde4ff',marginBottom:10}}>Paper Trading Portfolio</div>
+      {error && <div style={{color:'#f9bf97',marginBottom:7,fontSize:12}}>Refresh warning: {error}</div>}
       <div><b>Balance:</b> <span style={{color:'#e2ffe8',fontWeight:600}}>${(portfolio.cash ?? portfolio.balance)?.toLocaleString()}</span></div>
       <div><b>Equity:</b> <span style={{color:'#a1ffe8'}}>${(portfolio.totalValue ?? portfolio.equity)?.toLocaleString()}</span></div>
       <div><b>Positions Value:</b> <span style={{color:'#a1ffe8'}}>${portfolio.positionsValue?.toLocaleString()}</span></div>
       <div><b>Realized PnL:</b> <span style={{color:portfolio.pnl>=0?'#7affae':'#ffaeae'}}>{portfolio.pnl?.toFixed(2)}</span></div>
-      <div style={{marginTop:8,marginBottom:6,fontWeight:700,color:'#77c6e8'}}>Positions</div>
-      {portfolio.positions ? formatPosTable(portfolio.positions) : <span style={{color:'#ccc'}}>None</span>}
+      <div style={{marginTop:10,marginBottom:8,fontWeight:700,color:'#b8d2f5',fontSize:13}}>Positions</div>
+      {portfolio.positions ? formatPosTable(portfolio.positions) : <span style={{color:'#9cb0cc'}}>No active positions.</span>}
     </div>
   );
 };

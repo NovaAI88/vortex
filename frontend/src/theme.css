@@ -107,17 +107,26 @@ h1, h2, h3 {
 
 /* Cards, blocks, table/panels */
 .ui-card {
-  background: #252b3c;
+  background: linear-gradient(180deg, #1a2335 0%, #151f30 100%);
   border-radius: 14px;
-  padding: 2rem 2rem 1.6rem 2rem;
-  box-shadow: 0 2px 16px #00000022;
-  margin-bottom: 2rem;
-  border: 1.5px solid #22273b;
+  padding: 16px;
+  box-shadow: 0 2px 14px #0712242e;
+  margin-bottom: 18px;
+  border: 1px solid #263653;
 }
 .ui-card-empty {
   background: #23273a;
   color: #79859e!important;
   border: 1.5px dashed #28304a;
+}
+
+.ui-kpi-card,
+.ui-section-card,
+.ui-insight-card,
+.ui-table-card,
+.ui-sparkline-card {
+  border-color: #263a5a;
+  box-shadow: 0 2px 16px #07122433;
 }
 
 .dashboard-section {
@@ -142,27 +151,40 @@ h1, h2, h3 {
 }
 
 /* Data Table */
-.data-table {
+.data-table,
+.ui-table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
   background: none;
 }
-.data-table th, .data-table td {
-  padding: 0.85rem 0.6rem;
+.data-table th, .data-table td,
+.ui-table th, .ui-table td {
+  padding: 10px 8px;
   text-align: left;
 }
-.data-table th {
-  color: #7380a2;
-  font-size: 1.01rem;
-  border-bottom: 1.5px solid #232e41;
-  font-weight: 600;
+.data-table th,
+.ui-table th {
+  color: #95adcf;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #2a3d5e;
+  font-weight: 700;
+  background: rgba(26, 37, 59, 0.55);
 }
-.data-table td {
-  border-bottom: 1px solid #23293d;
-  font-size: 1.03rem;
+.data-table td,
+.ui-table td {
+  border-bottom: 1px solid #243552;
+  font-size: 13px;
+  color: #d7e5fb;
 }
-.data-table tr:last-child td {
+.data-table tbody tr:hover,
+.ui-table tbody tr:hover {
+  background: rgba(62, 92, 138, 0.16);
+}
+.data-table tr:last-child td,
+.ui-table tr:last-child td {
   border-bottom: none;
 }
 
@@ -179,14 +201,14 @@ h1, h2, h3 {
   width: 100%;
   max-width: 1720px;
   margin: 0 auto;
-  padding: 12px 18px;
+  padding: 18px;
   box-sizing: border-box;
 }
 
 .ui-kpi-strip {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
+  gap: 18px;
   width: 100%;
   margin-bottom: 18px;
 }
@@ -219,5 +241,8 @@ h1, h2, h3 {
   }
   .main-container {
     padding: 1.1rem 0.4rem;
+  }
+  .ui-page-shell {
+    padding: 14px;
   }
 }

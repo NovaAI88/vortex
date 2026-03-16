@@ -23,19 +23,19 @@ const StrategyPerformanceTable: React.FC = () => {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  if (loading) return <div style={{padding:16}}>Loading strategy performance…</div>;
-  if (!!error && !data.length) return <div style={{padding:14, color:'#cdbe73'}}>No performance data yet.</div>;
-  if (!data.length) return <div style={{padding:16}}>No strategy performance data yet.</div>;
+  if (loading) return <div style={{padding:16, color:'#9cb6d8'}}>Loading strategy performance…</div>;
+  if (!!error && !data.length) return <div style={{padding:14, color:'#cdbe73'}}>Performance feed unavailable right now.</div>;
+  if (!data.length) return <div style={{padding:16, color:'#93a5c4'}}>No strategy performance data available yet.</div>;
 
   return (
-    <div style={{background:'#192742',borderRadius:12,padding:18,boxShadow:'0 1px 8px #242a2c14',marginBottom:10,minWidth:300}}>
-      <div style={{fontWeight:700,fontSize:'1.25rem',color:'#8ddcff',marginBottom:16}}>Strategy Variant Performance</div>
-      {error && <div style={{color:'#d0bf70',marginBottom:'7px'}}>Refresh error: {error}</div>}
-      <table style={{width:'100%',fontSize:15,background:'none',color:'#e2f6ff'}}>
+    <div className="ui-card" style={{ marginBottom: 0, padding: 16, minWidth: 300 }}>
+      <div style={{fontWeight:700,fontSize:15,color:'#cde4ff',marginBottom:10}}>Strategy Variant Performance</div>
+      {error && <div style={{color:'#d0bf70',marginBottom:8,fontSize:12}}>Refresh warning: {error}</div>}
+      <table className="ui-table" style={{width:'100%',background:'none'}}>
         <thead>
-          <tr style={{background:'#243657'}}>
-            <th style={{textAlign:'left',padding:'4px 8px'}}>Strategy</th>
-            <th style={{textAlign:'left',padding:'4px 8px'}}>Variant</th>
+          <tr>
+            <th style={{textAlign:'left'}}>Strategy</th>
+            <th style={{textAlign:'left'}}>Variant</th>
             <th>Trades</th>
             <th>Wins</th>
             <th>Losses</th>
@@ -47,9 +47,9 @@ const StrategyPerformanceTable: React.FC = () => {
         </thead>
         <tbody>
         {data.map((d, idx) => (
-          <tr key={d.strategyId + d.variantId + idx} style={{borderBottom:'1.1px solid #283c4c'}}>
-            <td style={{padding:'2px 8px',fontWeight:600,color:'#8dfaff'}}>{d.strategyId}</td>
-            <td style={{padding:'2px 8px',fontWeight:500,color:'#fff2a9'}}>{d.variantId}</td>
+          <tr key={d.strategyId + d.variantId + idx}>
+            <td style={{fontWeight:600,color:'#8dfaff'}}>{d.strategyId}</td>
+            <td style={{fontWeight:500,color:'#fff2a9'}}>{d.variantId}</td>
             <td>{d.trades}</td>
             <td style={{color:'#7affae'}}>{d.wins}</td>
             <td style={{color:'#ef9393'}}>{d.losses}</td>
