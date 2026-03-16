@@ -66,7 +66,11 @@ const StrategyPage: React.FC = () => {
   }, [performance, strategyPnl]);
 
   const capitalAllocation = useMemo(() => {
-    const sum = Object.values(weights).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+    const sum = Object.values(weights).reduce<number>(
+      (acc, value) => acc + (typeof value === 'number' ? value : 0),
+      0
+    );
+
     return sum > 0 ? `${(sum * 100).toFixed(1)}%` : 'N/A';
   }, [weights]);
 
