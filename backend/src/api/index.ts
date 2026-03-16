@@ -9,6 +9,7 @@ import riskRouter from './risk';
 import engineRouter from './engine';
 import portfolioRouter from './portfolio';
 import alertsRouter from './alerts';
+import operatorRouter from '../operator/operatorRoutes';
 const app = express();
 
 app.get('/api/ping', (req, res) => res.status(200).send('pong'));
@@ -32,6 +33,7 @@ app.use('/api', riskRouter);
 app.use('/api', engineRouter);
 app.use('/api', portfolioRouter);
 app.use('/api', alertsRouter);
+app.use('/api', operatorRouter);
 import strategiesRouter from './strategies';
 app.use('/api', strategiesRouter);
 
@@ -40,5 +42,8 @@ app.use('/api', marketRouter);
 
 import backtestRouter from './backtest';
 app.use('/api/backtest', backtestRouter);
+
+import manualRouter from './manual';
+app.use('/api', manualRouter);
 
 export default app;

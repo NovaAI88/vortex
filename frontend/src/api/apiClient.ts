@@ -111,6 +111,42 @@ export async function pauseTrading() {
   return resp.json();
 }
 
+export async function manualClosePosition(symbol: string, variantId?: string | null) {
+  const resp = await fetch(`${API_BASE}/api/manual/close-position`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, variantId: variantId || null }),
+  });
+  if (!resp.ok) throw new Error('Failed to close position');
+  return resp.json();
+}
+
+export async function manualTakeProfit(symbol: string, variantId?: string | null, fraction = 0.5) {
+  const resp = await fetch(`${API_BASE}/api/manual/take-profit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol, variantId: variantId || null, fraction }),
+  });
+  if (!resp.ok) throw new Error('Failed to take profit');
+  return resp.json();
+}
+
+export async function manualFlattenVariant(variantId: string) {
+  const resp = await fetch(`${API_BASE}/api/manual/flatten-variant`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ variantId }),
+  });
+  if (!resp.ok) throw new Error('Failed to flatten variant');
+  return resp.json();
+}
+
+export async function manualFlattenAll() {
+  const resp = await fetch(`${API_BASE}/api/manual/flatten-all`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to flatten all');
+  return resp.json();
+}
+
 export async function fetchLegacyStatus() {
   const resp = await fetch(`${API_BASE}/status`);
   // Only use if /status endpoint needed for health badge
