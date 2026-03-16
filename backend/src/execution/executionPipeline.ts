@@ -32,11 +32,19 @@ export function startExecutionPipeline(bus: EventBus): void {
     const riskFraction = 0.01;
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
       let equity = 100000;
+      let maxPositionSizePercent = 10;
       try {
         const { getPortfolio } = require('../portfolio/state/portfolioLedger');
         const portfolio = getPortfolio();
         if (portfolio && typeof portfolio.equity === 'number' && isFinite(portfolio.equity) && portfolio.equity > 0) {
           equity = portfolio.equity;
+        }
+      } catch (e) {}
+      try {
+        const { getStatus } = require('../risk/globalRiskController');
+        const riskStatus = getStatus();
+        if (riskStatus && typeof riskStatus.maxPositionSizePercent === 'number' && isFinite(riskStatus.maxPositionSizePercent) && riskStatus.maxPositionSizePercent > 0) {
+          maxPositionSizePercent = riskStatus.maxPositionSizePercent;
         }
       } catch (e) {}
       if (!request.price || request.price <= 0) {
@@ -76,7 +84,9 @@ export function startExecutionPipeline(bus: EventBus): void {
         processedRiskDecisionIds.add(decision.id);
         return;
       }
-      request.qty = (equity * riskFraction) / request.price;
+      const qtyByRiskFraction = (equity * riskFraction) / request.price;
+      const qtyByMaxPosition = (equity * (maxPositionSizePercent / 100)) / request.price;
+      request.qty = Math.min(qtyByRiskFraction, qtyByMaxPosition);
     }
     // Mode gating logic
     const mode = getEngineMode();
