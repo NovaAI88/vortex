@@ -23,8 +23,10 @@ const PageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         <aside style={{ width: 85, minHeight: "100%", boxShadow: "2px 0 14px #1a254111", background: "#161f2e", borderRight: '2.5px solid #23355b', position:'relative',zIndex:21 }}>
           <SidebarNav />
         </aside>
-        <main style={{ flex: 1, minHeight: "100%", padding: "30px 0 12px 0", background: "#0f151f" }}>
-          {children}
+        <main style={{ flex: 1, minHeight: "100%", background: "#0f151f" }}>
+          <div className="ui-page-shell">
+            {children}
+          </div>
         </main>
       </div>
       <CommandPaletteStub />

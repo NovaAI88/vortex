@@ -1,4 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
+import PageHeaderBar from '../components/ui/PageHeaderBar';
+import KpiStrip from '../components/ui/KpiStrip';
+import KpiCard from '../components/ui/KpiCard';
+
 const symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "AVAXUSDT", "DOGEUSDT"];
 const timeframes = ["1", "5", "15", "60", "240", "D"];
 
@@ -47,8 +51,22 @@ const MarketTerminalPage: React.FC = () => {
   }
 
   return (
-    <div style={{padding:'38px 12px 12px 12px',maxWidth:1500,margin:'0 auto'}}>
-      <h2 style={{fontWeight:800,fontSize:'2.11rem',color:'#7fe5fe',marginBottom:12}}>Market Terminal</h2>
+    <div>
+      <PageHeaderBar
+        title="Market Terminal"
+        subtitle="Live symbol charting and execution context"
+        status="info"
+        statusLabel="STREAM"
+        activeSymbol={symbol}
+      />
+
+      <KpiStrip>
+        <KpiCard label="Price" value="67,085" />
+        <KpiCard label="24h Change" value="+2.31%" tone="positive" />
+        <KpiCard label="Funding Rate" value="0.0012%" />
+        <KpiCard label="Volatility" value="Moderate" />
+      </KpiStrip>
+
       <div style={{display:'flex',gap:18,marginBottom:13}}>
         <div>
           <select value={symbol} onChange={e=>setSymbol(e.target.value)} style={{fontSize:18,fontWeight:700,color:'#61f3e6',background:'#121b2e',padding:'6px 22px',borderRadius:8,marginRight:10,border:'2px solid #2f425b'}}>
