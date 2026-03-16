@@ -1,76 +1,93 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
-import InsightCard from '../components/ui/InsightCard';
+import { fetchSignals, fetchTrades, fetchStatus } from '../api/apiClient';
 
 const SentimentPage: React.FC = () => {
+  const [signals, setSignals] = useState<any[]>([]);
+  const [trades, setTrades] = useState<any[]>([]);
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setError(null);
+      try {
+        const [s, sig, tr] = await Promise.all([
+          fetchStatus(),
+          fetchSignals(),
+          fetchTrades(),
+        ]);
+        if (!mounted) return;
+        setStatus(s);
+        setSignals(Array.isArray(sig) ? sig : []);
+        setTrades(Array.isArray(tr) ? tr : []);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Backend not connected');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    const t = setInterval(load, 4000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+
+  const buySignals = useMemo(() => signals.filter((s) => s?.signalType === 'buy').length, [signals]);
+  const sellSignals = useMemo(() => signals.filter((s) => s?.signalType === 'sell').length, [signals]);
+  const buyTrades = useMemo(() => trades.filter((t) => t?.side === 'buy').length, [trades]);
+  const sellTrades = useMemo(() => trades.filter((t) => t?.side === 'sell').length, [trades]);
+
+  const tone = buySignals + buyTrades === 0 && sellSignals + sellTrades === 0
+    ? 'No data'
+    : buySignals + buyTrades > sellSignals + sellTrades
+    ? 'Bullish'
+    : sellSignals + sellTrades > buySignals + buyTrades
+    ? 'Bearish'
+    : 'Balanced';
+
   return (
     <div>
       <PageHeaderBar
         title="Sentiment Terminal"
-        subtitle="Cross-channel mood, positioning pressure, and narrative tone"
-        status="healthy"
-        statusLabel="BULLISH BIAS"
+        subtitle={loading ? 'Loading…' : 'Derived directly from live signals/trades'}
+        status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
+        statusLabel={error ? 'DISCONNECTED' : 'DATA-DRIVEN'}
         activeSymbol="MARKET"
+        timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Fear & Greed" value="65" delta="Greed" tone="positive" />
-        <KpiCard label="Social Buzz" value="Bullish" tone="positive" />
-        <KpiCard label="Media Tone" value="Lean Bullish" tone="positive" />
-        <KpiCard label="Crowd Momentum" value="Rising" tone="positive" />
-        <KpiCard label="Volatility Mood" value="Contained" />
-        <KpiCard label="Sentiment Regime" value="Risk-On" tone="positive" />
+        <KpiCard label="Signal Buys" value={buySignals} />
+        <KpiCard label="Signal Sells" value={sellSignals} />
+        <KpiCard label="Executed Buys" value={buyTrades} />
+        <KpiCard label="Executed Sells" value={sellTrades} />
+        <KpiCard label="Sentiment Tone" value={tone} tone={tone === 'Bullish' ? 'positive' : tone === 'Bearish' ? 'negative' : 'neutral'} />
       </KpiStrip>
 
-      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 380px)' }}>
-        <SectionCard title="Primary Sentiment Stack">
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Fear & Greed Index</div>
-              <div style={{ color: '#f8e892', fontSize: 26, fontWeight: 800 }}>65 (Greed)</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, marginTop: 4 }}>Mood remains elevated but not yet euphoric.</div>
+      {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>Backend not connected.</div> : null}
+      {!error && !loading && !signals.length && !trades.length ? <div className="ui-card" style={{ color: '#9cb1d3', padding: 14 }}>No sentiment source data available yet.</div> : null}
+
+      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
+        <SectionCard title="Recent Signals Input">
+          {signals.length ? (
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
+              {signals.slice(0, 8).map((s, i) => <div key={i}>{s.symbol} · {String(s.signalType || '—').toUpperCase()} · {s.variantId || 'default'}</div>)}
             </div>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Social / Media Blend</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-                Social buzz: <b style={{ color: '#9cf5cf' }}>Bullish</b><br />
-                Crypto Twitter: <b style={{ color: '#9fe8ff' }}>Upbeat</b><br />
-                Headlines: <b style={{ color: '#8ff0be' }}>Risk appetite improving</b>
-              </div>
+          ) : <div style={{ color: '#9cb1d3' }}>No signals available.</div>}
+        </SectionCard>
+        <SectionCard title="Recent Execution Output">
+          {trades.length ? (
+            <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
+              {trades.slice(0, 8).map((t, i) => <div key={i}>{t.symbol} · {String(t.side || '—').toUpperCase()} · {t.variantId || 'default'}</div>)}
             </div>
-          </div>
+          ) : <div style={{ color: '#9cb1d3' }}>No trades available.</div>}
         </SectionCard>
-
-        <SectionCard title="Sentiment Risk Monitor">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-            <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Operator Note</div>
-            <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-              Risk-on sentiment supports trend continuation, but crowded positioning can increase reversal velocity. Use confirmation before expanding size.
-            </div>
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-        <SectionCard title="Positioning Context">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-            Retail participation is rising while institutional tone remains constructive. Momentum may persist as long as funding and breadth remain balanced.
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Fallback / Empty-State Safety">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#9db0cf', fontSize: 13 }}>
-            No data available state is supported. If live sentiment feeds are unavailable, this terminal remains stable and readable.
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
-        <InsightCard title="Sentiment Interpretation" text="Bullish mood currently supports upside continuation, but monitor for late-cycle exuberance signals." source="Sentiment layer" />
-        <InsightCard title="Operator Guidance" text="Add exposure only when sentiment strength aligns with structure and liquidity. Avoid chasing if momentum decouples from quality." source="Operator protocol" />
       </div>
     </div>
   );

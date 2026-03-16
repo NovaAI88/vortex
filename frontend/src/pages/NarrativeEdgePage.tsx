@@ -1,73 +1,61 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { fetchStatus, fetchSignals, fetchDecisions } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
-import InsightCard from '../components/ui/InsightCard';
 
 const NarrativeEdgePage: React.FC = () => {
+  const [status, setStatus] = useState<any>(null);
+  const [signals, setSignals] = useState<any[]>([]);
+  const [decisions, setDecisions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setError(null);
+      try {
+        const [s, sig, dec] = await Promise.all([fetchStatus(), fetchSignals(), fetchDecisions()]);
+        if (!mounted) return;
+        setStatus(s);
+        setSignals(Array.isArray(sig) ? sig : []);
+        setDecisions(Array.isArray(dec) ? dec : []);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Backend not connected');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    const t = setInterval(load, 5000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+
   return (
     <div>
       <PageHeaderBar
         title="Narrative Edge Terminal"
-        subtitle="Macro storylines, cycle context and unconventional market framing"
-        status="info"
-        statusLabel="NARRATIVE ACTIVE"
-        activeSymbol="CONTEXT"
+        subtitle={loading ? 'Loading…' : 'Narrative engine not wired yet; showing only backend telemetry context'}
+        status={error ? 'critical' : 'info'}
+        statusLabel={error ? 'DISCONNECTED' : 'NOT WIRED'}
+        activeSymbol="NARRATIVE"
+        timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Moon Phase" value="Waxing Gibbous" />
-        <KpiCard label="Seasonality" value="Spring Bounce" tone="positive" />
-        <KpiCard label="Volatility Cycle" value="Mid / Descending" />
-        <KpiCard label="Macro Stress" value="Moderate" />
-        <KpiCard label="Liquidity Tone" value="Improving" tone="positive" />
-        <KpiCard label="Narrative Bias" value="Constructive" tone="positive" />
+        <KpiCard label="Narrative Feed" value={error ? 'Disconnected' : 'Not connected yet'} tone={error ? 'negative' : 'neutral'} />
+        <KpiCard label="Signals" value={signals.length} />
+        <KpiCard label="Decisions" value={decisions.length} />
       </KpiStrip>
 
-      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 380px)' }}>
-        <SectionCard title="Narrative Context Matrix">
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Primary Storyline</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-                ETF flow stability and calmer macro volatility continue to support risk assets with selective upside rotation.
-              </div>
-            </div>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Cycle Interpretation</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-                Market sits in a constructive middle phase where trend-following still works, but rotation and dispersion increase.
-              </div>
-            </div>
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Narrative Risk Controls">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-            If macro shock headlines accelerate or volatility regimes flip abruptly, narrative conviction can unwind faster than price signals.
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-        <SectionCard title="Unconventional Signals">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-            Alternate-cycle framing currently supports constructive bias, but should always be validated by structure and liquidity data.
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Fallback / Empty-State Safety">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#9db0cf', fontSize: 13 }}>
-            Narrative terminal remains stable if contextual feeds are unavailable. No runtime crash paths on empty input.
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
-        <InsightCard title="Narrative Interpretation" text="Current macro and flow story supports selective upside with disciplined risk overlays." source="Narrative layer" />
-        <InsightCard title="Operator Guidance" text="Use narrative context as a filter, not a trigger. Execute only when narrative and structure agree." source="Operator protocol" />
-      </div>
+      <SectionCard title="Truthful State">
+        <div style={{ color: '#9cb1d3', fontSize: 13 }}>
+          Narrative engine not wired yet. No fabricated macro stories or synthetic narrative scoring is displayed.
+        </div>
+      </SectionCard>
     </div>
   );
 };

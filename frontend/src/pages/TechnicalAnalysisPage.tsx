@@ -1,72 +1,91 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
-import InsightCard from '../components/ui/InsightCard';
+import { fetchOrderbook, fetchTrades, fetchStatus } from '../api/apiClient';
 
 const TechnicalAnalysisPage: React.FC = () => {
+  const [status, setStatus] = useState<any>(null);
+  const [orderbook, setOrderbook] = useState<any>(null);
+  const [trades, setTrades] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setError(null);
+      try {
+        const [s, ob, tr] = await Promise.all([fetchStatus(), fetchOrderbook(), fetchTrades()]);
+        if (!mounted) return;
+        setStatus(s);
+        setOrderbook(ob);
+        setTrades(Array.isArray(tr) ? tr : []);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || 'Backend not connected');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    const t = setInterval(load, 3000);
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+
+  const bestBid = Number(orderbook?.bids?.[0]?.[0]);
+  const bestAsk = Number(orderbook?.asks?.[0]?.[0]);
+  const spread = Number.isFinite(bestBid) && Number.isFinite(bestAsk) ? bestAsk - bestBid : null;
+  const lastTradePrice = Number(trades?.[0]?.price);
+  const microTrend = useMemo(() => {
+    if (trades.length < 2) return 'No data';
+    const now = Number(trades[0]?.price);
+    const prev = Number(trades[1]?.price);
+    if (!Number.isFinite(now) || !Number.isFinite(prev)) return 'No data';
+    return now > prev ? 'Up' : now < prev ? 'Down' : 'Flat';
+  }, [trades]);
+
   return (
     <div>
       <PageHeaderBar
         title="Technical Analysis Terminal"
-        subtitle="Structure, momentum, volatility and trend confluence"
-        status="healthy"
-        statusLabel="TREND ALIGNED"
-        activeSymbol="BTC/USD"
+        subtitle={loading ? 'Loading…' : 'Real-time microstructure from backend order book/trades'}
+        status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
+        statusLabel={error ? 'DISCONNECTED' : 'LIVE INPUT'}
+        activeSymbol="BTCUSDT"
+        timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="RSI (14)" value="63.2" tone="positive" />
-        <KpiCard label="Momentum Score" value="+13.7" tone="positive" />
-        <KpiCard label="Volatility" value="Low-Moderate" />
-        <KpiCard label="50 MA" value="67,080" tone="positive" />
-        <KpiCard label="200 MA" value="66,210" tone="positive" />
-        <KpiCard label="Structure" value="Higher High / Low" tone="positive" />
+        <KpiCard label="Best Bid" value={Number.isFinite(bestBid) ? bestBid.toFixed(2) : 'No data'} />
+        <KpiCard label="Best Ask" value={Number.isFinite(bestAsk) ? bestAsk.toFixed(2) : 'No data'} />
+        <KpiCard label="Spread" value={spread !== null ? spread.toFixed(2) : 'No data'} />
+        <KpiCard label="Last Trade" value={Number.isFinite(lastTradePrice) ? lastTradePrice.toFixed(2) : 'No data'} />
+        <KpiCard label="Micro Trend" value={microTrend} tone={microTrend === 'Up' ? 'positive' : microTrend === 'Down' ? 'negative' : 'neutral'} />
       </KpiStrip>
 
-      <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 380px)' }}>
-        <SectionCard title="Trend & Momentum Stack">
-          <div style={{ display: 'grid', gap: 10 }}>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Momentum</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-                RSI remains above midline, indicating persistent upside pressure while avoiding extreme overbought risk.
-              </div>
+      {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>Backend not connected.</div> : null}
+      {!error && !loading && !orderbook && !trades.length ? <div className="ui-card" style={{ color: '#9cb1d3', padding: 14 }}>No technical data available yet.</div> : null}
+
+      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
+        <SectionCard title="Order Book Depth">
+          {orderbook?.bids?.length || orderbook?.asks?.length ? (
+            <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
+              <div>Top bids: {(orderbook?.bids || []).slice(0, 4).map((b: any) => `${b[0]}(${b[1]})`).join(' · ')}</div>
+              <div>Top asks: {(orderbook?.asks || []).slice(0, 4).map((a: any) => `${a[0]}(${a[1]})`).join(' · ')}</div>
+              <div>Support: {orderbook?.support ?? '—'} | Resistance: {orderbook?.resistance ?? '—'}</div>
             </div>
-            <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px' }}>
-              <div style={{ color: '#dce8ff', fontWeight: 700, marginBottom: 6 }}>Moving Average Confluence</div>
-              <div style={{ color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-                Price holding above 50/200 MA spread supports continuation bias. Trend quality remains constructive.
-              </div>
+          ) : <div style={{ color: '#9cb1d3' }}>No order book data.</div>}
+        </SectionCard>
+
+        <SectionCard title="Recent Prints">
+          {trades.length ? (
+            <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
+              {trades.slice(0, 10).map((t, i) => <div key={i}>{t.timestamp ? new Date(t.timestamp).toLocaleTimeString() : '—'} · {String(t.side || '—').toUpperCase()} · {t.price ?? '—'} · qty {t.qty ?? '—'}</div>)}
             </div>
-          </div>
+          ) : <div style={{ color: '#9cb1d3' }}>No trade prints.</div>}
         </SectionCard>
-
-        <SectionCard title="Risk / Failure Conditions">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-            If momentum weakens while volatility expands, expect higher chop risk. Watch for MA retest failure before increasing leverage.
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-        <SectionCard title="Structure Context">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#c4d8f8', fontSize: 13, lineHeight: 1.55 }}>
-            Multi-timeframe structure remains bullish with controlled pullbacks and sustained bid response near dynamic supports.
-          </div>
-        </SectionCard>
-
-        <SectionCard title="Fallback / Empty-State Safety">
-          <div className="ui-card" style={{ marginBottom: 0, padding: '12px 14px', color: '#9db0cf', fontSize: 13 }}>
-            No data available fallback is supported to keep terminal stable if TA feeds are temporarily unavailable.
-          </div>
-        </SectionCard>
-      </div>
-
-      <div className="ui-bottom-row" style={{ marginTop: 12 }}>
-        <InsightCard title="Technical Interpretation" text="Trend remains intact with healthy momentum and manageable volatility backdrop." source="TA layer" />
-        <InsightCard title="Operator Guidance" text="Favor continuation setups on pullbacks while maintaining invalidation discipline near key support breaks." source="Operator protocol" />
       </div>
     </div>
   );
