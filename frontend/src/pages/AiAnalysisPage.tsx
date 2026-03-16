@@ -14,22 +14,35 @@ const AiAnalysisPage: React.FC = () => {
   const [reasoning, setReasoning] = useState<string>('');
   const [signals, setSignals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backendDisconnected, setBackendDisconnected] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    fetchSignals()
-      .then((data) => {
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchSignals();
         if (!mounted) return;
         const arr = Array.isArray(data) ? data : [];
         const sig = arr[0];
+
         setSignals(arr);
         setConfidence(sig && typeof sig.confidence === 'number' ? sig.confidence : null);
         setReasoning(sig && typeof sig.rationale === 'string' ? sig.rationale : '');
-      })
-      .finally(() => {
+        setBackendDisconnected(false);
+      } catch {
+        if (!mounted) return;
+        setSignals([]);
+        setConfidence(null);
+        setReasoning('');
+        setBackendDisconnected(true);
+      } finally {
         if (mounted) setLoading(false);
-      });
+      }
+    };
+
+    load();
     return () => {
       mounted = false;
     };
@@ -44,20 +57,20 @@ const AiAnalysisPage: React.FC = () => {
         .map((s) => s?.strategyId || s?.source)
         .filter((v) => typeof v === 'string' && v.length > 0)
     );
-    return ids.size || 1;
+    return ids.size || 0;
   }, [signals]);
   const signalCount = signals.length;
   const regime = confidence !== null ? (confidence >= 0.75 ? 'Trending' : confidence >= 0.45 ? 'Neutral' : 'Uncertain') : 'N/A';
   const lastUpdate = primary?.timestamp || 'N/A';
-  const healthState = confidence !== null ? (confidence >= 0.75 ? 'healthy' : confidence >= 0.45 ? 'warning' : 'critical') : 'info';
+  const healthState = backendDisconnected ? 'critical' : confidence !== null ? (confidence >= 0.75 ? 'healthy' : confidence >= 0.45 ? 'warning' : 'critical') : 'info';
 
   return (
     <div>
       <PageHeaderBar
         title="AI Analysis Terminal"
-        subtitle="Model reasoning, signal synthesis, and operator intelligence"
+        subtitle={backendDisconnected ? 'Backend not connected — showing safe fallback state' : 'Model reasoning, signal synthesis, and operator intelligence'}
         status={healthState as any}
-        statusLabel={healthState === 'healthy' ? 'AI STABLE' : healthState === 'warning' ? 'AI WATCH' : healthState === 'critical' ? 'AI CAUTION' : 'AI INFO'}
+        statusLabel={backendDisconnected ? 'BACKEND OFFLINE' : healthState === 'healthy' ? 'AI STABLE' : healthState === 'warning' ? 'AI WATCH' : healthState === 'critical' ? 'AI CAUTION' : 'AI INFO'}
         activeSymbol={primary?.symbol || 'MULTI-ASSET'}
         timestamp={lastUpdate !== 'N/A' ? lastUpdate : undefined}
       />
@@ -65,11 +78,18 @@ const AiAnalysisPage: React.FC = () => {
       <KpiStrip>
         <KpiCard label="Signal Bias" value={bias} />
         <KpiCard label="Confidence" value={confidencePct} tone={confidence !== null ? (confidence >= 0.6 ? 'positive' : 'negative') : 'neutral'} />
-        <KpiCard label="Active Models" value={activeModels} />
+        <KpiCard label="Active Models" value={activeModels || 'N/A'} />
         <KpiCard label="Signal Count" value={signalCount || 'N/A'} />
         <KpiCard label="Regime" value={regime} />
         <KpiCard label="Last Update" value={lastUpdate !== 'N/A' ? new Date(lastUpdate).toLocaleTimeString() : 'N/A'} />
       </KpiStrip>
+
+      {backendDisconnected ? (
+        <div className="ui-card" style={{ padding: 20, color: '#c7d5ee', marginBottom: 18 }}>
+          <div style={{ fontWeight: 800, color: '#ffb5b5', marginBottom: 6 }}>Backend not connected</div>
+          <div style={{ fontSize: 13 }}>No AI data available right now. Reconnect backend to restore live model signals.</div>
+        </div>
+      ) : null}
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(300px, 360px)' }}>
         <SectionCard title="Core AI Signal Overview">

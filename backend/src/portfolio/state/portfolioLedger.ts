@@ -137,6 +137,18 @@ export function recordExecution(exec: ExecutionResult) {
   if (!exec || exec.status !== 'simulated') return;
   if (!exec.qty || exec.qty <= 0) return;
 
+  console.log('[TRACE portfolio.input]', {
+    symbol: exec.symbol,
+    side: exec.side,
+    variantId: exec.variantId,
+    price: exec.price,
+    qty: exec.qty,
+    signalId: exec.signalId,
+    actionCandidateId: exec.actionCandidateId,
+    riskDecisionId: exec.riskDecisionId,
+    executionRequestId: exec.executionRequestId,
+  });
+
   try { recordTrade(exec); } catch {}
 
   const symbol = exec.symbol || 'BTCUSDT';
@@ -149,6 +161,18 @@ export function recordExecution(exec: ExecutionResult) {
 
   const vBook = getOrCreateVariantBook(vId);
   applyExecution(vBook, symbol, symbol, signedQty, price, vId, exec);
+
+  console.log('[TRACE portfolio.output]', {
+    symbol,
+    side: exec.side,
+    variantId: vId,
+    qty: signedQty,
+    price,
+    globalPositionQty: globalBook.positions[globalPositionKey]?.qty,
+    variantPositionQty: vBook.positions[symbol]?.qty,
+    globalEquity: Number(globalBook.equity.toFixed(2)),
+    variantEquity: Number(vBook.equity.toFixed(2)),
+  });
 
   updatePortfolio(exec);
   updatePosition(exec);

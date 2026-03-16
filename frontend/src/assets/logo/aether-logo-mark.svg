@@ -1,0 +1,47 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(138 118) rotate(141) scale(170 164)">
+      <stop offset="0" stop-color="#1A2A4A"/>
+      <stop offset="0.62" stop-color="#11192E"/>
+      <stop offset="1" stop-color="#0A0F1B"/>
+    </radialGradient>
+    <linearGradient id="wave1" x1="34" y1="80" x2="226" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7EFAFF"/>
+      <stop offset="0.4" stop-color="#55D3FF"/>
+      <stop offset="1" stop-color="#7B7DFF"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="30" y1="186" x2="224" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64F7CF"/>
+      <stop offset="0.44" stop-color="#5FDFFF"/>
+      <stop offset="1" stop-color="#74A4FF"/>
+    </linearGradient>
+    <linearGradient id="wave3" x1="56" y1="48" x2="202" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B6FDFF"/>
+      <stop offset="0.54" stop-color="#76D6FF"/>
+      <stop offset="1" stop-color="#8E8DFF"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(128 126) rotate(90) scale(28)">
+      <stop offset="0" stop-color="#F4FEFF"/>
+      <stop offset="0.48" stop-color="#B0F7FF"/>
+      <stop offset="1" stop-color="#69B4FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="16" y="34" width="224" height="188" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+
+  <g filter="url(#glow)" opacity="0.95">
+    <path d="M34 154C54 116 79 93 108 89C140 84 172 98 226 146" stroke="url(#wave1)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M30 110C60 149 92 167 124 168C157 169 189 150 224 96" stroke="url(#wave2)" stroke-width="13" stroke-linecap="round"/>
+    <path d="M56 182C83 149 107 136 130 134C156 132 177 143 202 169" stroke="url(#wave3)" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+  </g>
+
+  <path d="M34 154C54 116 79 93 108 89C140 84 172 98 226 146" stroke="url(#wave1)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M30 110C60 149 92 167 124 168C157 169 189 150 224 96" stroke="url(#wave2)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M56 182C83 149 107 136 130 134C156 132 177 143 202 169" stroke="url(#wave3)" stroke-width="5.6" stroke-linecap="round" opacity="0.92"/>
+
+  <ellipse cx="128" cy="126" rx="30" ry="26" fill="url(#core)"/>
+  <circle cx="128" cy="126" r="8" fill="#E8FDFF"/>
+</svg>

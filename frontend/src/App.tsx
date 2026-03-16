@@ -13,8 +13,24 @@ import AlertsPage from './pages/AlertsPage';
 import BacktestPage from './pages/BacktestPage';
 import StatusPage from './pages/StatusPage';
 import StrategyPage from './pages/StrategyPage';
+import faviconAsset from './assets/logo/aether-favicon.svg';
 
 function App() {
+  React.useEffect(() => {
+    const existing = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    if (existing) {
+      existing.href = faviconAsset;
+      existing.type = 'image/svg+xml';
+      return;
+    }
+
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = 'image/svg+xml';
+    link.href = faviconAsset;
+    document.head.appendChild(link);
+  }, []);
+
   return (
     <Router>
       <PageLayout>

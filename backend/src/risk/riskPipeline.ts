@@ -14,11 +14,29 @@ export function startRiskPipeline(bus: EventBus): void {
     try {
       const candidate = envelope.payload;
       const duplicate = processedIds.has(candidate.id);
+
+      console.log('[TRACE risk.input]', {
+        symbol: candidate?.symbol,
+        side: candidate?.side,
+        variantId: candidate?.variantId,
+        price: candidate?.price,
+        signalId: candidate?.signalId,
+        actionCandidateId: candidate?.id,
+      });
+
       // Global risk controls
       const riskCheck = checkLimits(candidate);
       if (!riskCheck.allowed) {
         const riskBlockedDecision = { ...candidate, status: 'blocked_global_risk', blockedBy: riskCheck.blockedBy };
         try { logRisk(riskBlockedDecision); } catch(e) {}
+        console.log('[TRACE risk.output.blocked_global]', {
+          symbol: candidate?.symbol,
+          side: candidate?.side,
+          variantId: candidate?.variantId,
+          signalId: candidate?.signalId,
+          actionCandidateId: candidate?.id,
+          blockedBy: riskCheck.blockedBy,
+        });
         publishRiskDecision(bus, riskBlockedDecision, 'risk', envelope.correlationId);
         return;
       }
@@ -48,6 +66,14 @@ export function startRiskPipeline(bus: EventBus): void {
           timestamp: new Date().toISOString(),
         };
         try { logRisk(blocked); } catch(e) {}
+        console.log('[TRACE risk.output.blocked_state]', {
+          symbol: candidate?.symbol,
+          side: candidate?.side,
+          variantId: candidate?.variantId,
+          signalId: candidate?.signalId,
+          actionCandidateId: candidate?.id,
+          blockedBy: 'already_long',
+        });
         publishRiskDecision(bus, blocked, 'risk', envelope.correlationId);
         return;
       }
@@ -63,19 +89,39 @@ export function startRiskPipeline(bus: EventBus): void {
           timestamp: new Date().toISOString(),
         };
         try { logRisk(blocked); } catch(e) {}
+        console.log('[TRACE risk.output.blocked_state]', {
+          symbol: candidate?.symbol,
+          side: candidate?.side,
+          variantId: candidate?.variantId,
+          signalId: candidate?.signalId,
+          actionCandidateId: candidate?.id,
+          blockedBy: 'already_flat',
+        });
         publishRiskDecision(bus, blocked, 'risk', envelope.correlationId);
         return;
       }
 
       const decision = basicRiskEvaluator(candidate, duplicate);
-      // Propagate strategyId, price, and variantId
+      // Propagate required execution-routing fields from candidate
       if (candidate && decision) {
-        decision.strategyId = candidate.strategyId;
-        decision.price = candidate.price; // Explicit field propagation
-        decision.variantId = candidate.variantId; // Explicit field propagation
+        decision.strategyId = candidate.strategyId || candidate.strategy || 'unknown';
+        (decision as any).symbol = candidate.symbol;
+        (decision as any).side = candidate.side;
+        decision.price = candidate.price;
+        decision.variantId = candidate.variantId;
       }
       // Bridge: log for API
       try { logRisk(decision); } catch(e) {}
+      console.log('[TRACE risk.output]', {
+        approved: decision?.approved,
+        symbol: candidate?.symbol,
+        side: candidate?.side,
+        variantId: decision?.variantId,
+        price: decision?.price,
+        signalId: decision?.signalId,
+        actionCandidateId: decision?.actionCandidateId,
+        riskDecisionId: decision?.id,
+      });
       publishRiskDecision(bus, decision, 'risk', envelope.correlationId);
       if (!duplicate) {
         processedIds.add(candidate.id);

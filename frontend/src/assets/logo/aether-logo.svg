@@ -1,0 +1,62 @@
+<svg width="920" height="240" viewBox="0 0 920 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(140 118) rotate(141) scale(172 166)">
+      <stop offset="0" stop-color="#1A2A4A"/>
+      <stop offset="0.62" stop-color="#11192E"/>
+      <stop offset="1" stop-color="#0A0F1B"/>
+    </radialGradient>
+    <linearGradient id="wave1" x1="36" y1="82" x2="230" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7EFAFF"/>
+      <stop offset="0.4" stop-color="#55D3FF"/>
+      <stop offset="1" stop-color="#7B7DFF"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="32" y1="188" x2="228" y2="62" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64F7CF"/>
+      <stop offset="0.44" stop-color="#5FDFFF"/>
+      <stop offset="1" stop-color="#74A4FF"/>
+    </linearGradient>
+    <linearGradient id="wave3" x1="58" y1="50" x2="205" y2="202" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B6FDFF"/>
+      <stop offset="0.54" stop-color="#76D6FF"/>
+      <stop offset="1" stop-color="#8E8DFF"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(132 126) rotate(90) scale(28)">
+      <stop offset="0" stop-color="#F4FEFF"/>
+      <stop offset="0.48" stop-color="#B0F7FF"/>
+      <stop offset="1" stop-color="#69B4FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="word" x1="260" y1="66" x2="860" y2="176" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F3F9FF"/>
+      <stop offset="0.44" stop-color="#DBEDFF"/>
+      <stop offset="1" stop-color="#8CCEFF"/>
+    </linearGradient>
+    <filter id="glow" x="18" y="34" width="224" height="188" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+  </defs>
+
+  <rect width="920" height="240" rx="32" fill="none"/>
+  <rect x="22" y="20" width="220" height="200" rx="42" fill="url(#bg)"/>
+
+  <g filter="url(#glow)" opacity="0.95">
+    <path d="M36 154C56 116 81 93 110 89C142 84 174 98 228 146" stroke="url(#wave1)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M32 110C62 149 94 167 126 168C159 169 191 150 226 96" stroke="url(#wave2)" stroke-width="13" stroke-linecap="round"/>
+    <path d="M58 182C85 149 109 136 132 134C158 132 179 143 204 169" stroke="url(#wave3)" stroke-width="9" stroke-linecap="round" opacity="0.9"/>
+  </g>
+
+  <path d="M36 154C56 116 81 93 110 89C142 84 174 98 228 146" stroke="url(#wave1)" stroke-width="10" stroke-linecap="round"/>
+  <path d="M32 110C62 149 94 167 126 168C159 169 191 150 226 96" stroke="url(#wave2)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M58 182C85 149 109 136 132 134C158 132 179 143 204 169" stroke="url(#wave3)" stroke-width="5.6" stroke-linecap="round" opacity="0.92"/>
+
+  <ellipse cx="132" cy="126" rx="30" ry="26" fill="url(#core)"/>
+  <circle cx="132" cy="126" r="8" fill="#E8FDFF"/>
+
+  <path d="M272 162V74H356V94H297V110H348V129H297V162H272Z" fill="url(#word)"/>
+  <path d="M371 162V74H396V162H371Z" fill="url(#word)"/>
+  <path d="M414 162V74H438L482 138V74H506V162H482L438 98V162H414Z" fill="url(#word)"/>
+  <path d="M526 162V74H551V138H608V162H526Z" fill="url(#word)"/>
+  <path d="M624 162V74H649V138H706V162H624Z" fill="url(#word)"/>
+  <path d="M721 162V74H801V94H746V109H794V128H746V142H804V162H721Z" fill="url(#word)"/>
+  <path d="M819 162V74H844V162H819Z" fill="url(#word)"/>
+  <path d="M862 162V74H912V94H887V109H910V128H887V162H862Z" fill="url(#word)"/>
+</svg>

@@ -1,15 +1,5 @@
 import React from 'react';
-
-const AetherLogo = () => (
-  <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg" style={{marginRight:18,filter:'drop-shadow(0 1px 8px #1e305350)'}}>
-    <g>
-      {/* Sharp custom stylized "A" geometric mark for AETHER */}
-      <polygon points="22,4 40,40 22,32 4,40" fill="#232d69" stroke="#49bfec" strokeWidth="2.2"/>
-      <polyline points="22,14 31,33 22,29 13,33 22,14" fill="none" stroke="#69d4ff" strokeWidth="2.4" strokeLinejoin="miter"/>
-      <circle cx="22" cy="20" r="2.6" fill="#49bfec" />
-    </g>
-  </svg>
-);
+import logoMark from '../assets/logo/aether-logo-mark.svg';
 
 const BrandHeader: React.FC = () => (
   <header style={{
@@ -24,7 +14,13 @@ const BrandHeader: React.FC = () => (
     zIndex: 30,
     overflow:'hidden',
   }}>
-    <AetherLogo />
+    <img
+      src={logoMark}
+      alt="AETHER logo"
+      width={44}
+      height={44}
+      style={{ marginRight: 18, filter: 'drop-shadow(0 1px 8px #1e305350)' }}
+    />
     <span style={{
       color: '#86e6ff',
       fontWeight: 800,

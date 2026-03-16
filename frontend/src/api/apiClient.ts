@@ -23,9 +23,14 @@ export async function fetchPositions() {
 }
 
 export async function fetchSignals() {
-  const resp = await fetch(`${API_BASE}/api/signals`);
-  if (!resp.ok) throw new Error('Failed to fetch signals');
-  return resp.json();
+  try {
+    const resp = await fetch(`${API_BASE}/api/signals`);
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchDecisions() {

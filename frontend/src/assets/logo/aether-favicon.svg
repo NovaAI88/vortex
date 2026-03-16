@@ -1,0 +1,24 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(35 31) rotate(141) scale(42 40)">
+      <stop offset="0" stop-color="#1A2A4A"/>
+      <stop offset="0.62" stop-color="#11192E"/>
+      <stop offset="1" stop-color="#0A0F1B"/>
+    </radialGradient>
+    <linearGradient id="wave1" x1="9" y1="21" x2="57" y2="43" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7EFAFF"/>
+      <stop offset="0.42" stop-color="#58D6FF"/>
+      <stop offset="1" stop-color="#7A82FF"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="8" y1="48" x2="56" y2="17" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#64F7CF"/>
+      <stop offset="0.46" stop-color="#5FDFFF"/>
+      <stop offset="1" stop-color="#75A6FF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <path d="M9 39C14 30 20.5 25 28.6 24.5C37.3 23.9 44.8 27.5 57 38" stroke="url(#wave1)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M8 29C14.8 37.8 22.5 42 30.5 42.2C38.8 42.4 46 37.8 56 26.2" stroke="url(#wave2)" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="2.4" fill="#EAFEFF"/>
+</svg>

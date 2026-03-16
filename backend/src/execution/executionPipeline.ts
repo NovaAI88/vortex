@@ -14,6 +14,18 @@ const processedRiskDecisionIds = new Set<string>();
 export function startExecutionPipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.RISK_DECISION, envelope => {
     const decision = envelope.payload;
+
+    console.log('[TRACE execution.input]', {
+      approved: decision?.approved,
+      symbol: decision?.symbol,
+      side: decision?.side,
+      variantId: decision?.variantId,
+      price: decision?.price,
+      signalId: decision?.signalId,
+      actionCandidateId: decision?.actionCandidateId,
+      riskDecisionId: decision?.id,
+    });
+
     if (!decision.approved) return; // gate: only process approved
     if (processedRiskDecisionIds.has(decision.id)) return; // dedup gate
     const request: ExecutionRequest = {
@@ -29,6 +41,18 @@ export function startExecutionPipeline(bus: EventBus): void {
       producer: 'execution',
       timestamp: new Date().toISOString()
     };
+
+    console.log('[TRACE execution.request]', {
+      symbol: request.symbol,
+      side: request.side,
+      variantId: request.variantId,
+      price: request.price,
+      qty: request.qty,
+      signalId: request.signalId,
+      actionCandidateId: request.actionCandidateId,
+      riskDecisionId: request.riskDecisionId,
+      executionRequestId: request.id,
+    });
     // Position sizing for PAPER_TRADING
     const riskFraction = 0.01;
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
@@ -81,6 +105,19 @@ export function startExecutionPipeline(bus: EventBus): void {
             recordExecution(result);
           }
         } catch(e) {}
+        console.log('[TRACE execution.result]', {
+          symbol: result.symbol,
+          side: result.side,
+          variantId: result.variantId,
+          price: result.price,
+          qty: result.qty,
+          signalId: result.signalId,
+          actionCandidateId: result.actionCandidateId,
+          riskDecisionId: result.riskDecisionId,
+          executionRequestId: result.executionRequestId,
+          status: result.status,
+          reason: result.reason,
+        });
         publishExecutionResult(bus, result, 'execution', envelope.correlationId);
         processedRiskDecisionIds.add(decision.id);
         return;
@@ -128,6 +165,19 @@ export function startExecutionPipeline(bus: EventBus): void {
           recordExecution(result);
         }
       } catch(e) {}
+      console.log('[TRACE execution.result]', {
+        symbol: result.symbol,
+        side: result.side,
+        variantId: result.variantId,
+        price: result.price,
+        qty: result.qty,
+        signalId: result.signalId,
+        actionCandidateId: result.actionCandidateId,
+        riskDecisionId: result.riskDecisionId,
+        executionRequestId: result.executionRequestId,
+        status: result.status,
+        reason: result.reason,
+      });
       publishExecutionResult(bus, result, 'execution', envelope.correlationId);
     }
     processedRiskDecisionIds.add(decision.id);

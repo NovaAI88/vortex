@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import logoMark from '../assets/logo/aether-logo-mark.svg';
 
 type NavItem = {
   label: string;
@@ -123,6 +124,11 @@ const SidebarNav: React.FC = () => (
       overflowY: 'auto',
     }}
   >
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px 12px 8px', borderBottom: '1px solid #213153' }}>
+      <img src={logoMark} alt="AETHER" width={22} height={22} style={{ filter: 'drop-shadow(0 0 8px #57d4ff55)' }} />
+      <span style={{ color: '#9fdfff', fontSize: 12, fontWeight: 800, letterSpacing: '0.09em' }}>AETHER</span>
+    </div>
+
     {navGroups.map((group) => (
       <div key={group.title} style={{ borderBottom: '1px solid #213153', paddingBottom: 10 }}>
         <div

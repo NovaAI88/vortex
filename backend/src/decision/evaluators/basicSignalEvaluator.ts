@@ -21,7 +21,16 @@ export function basicSignalEvaluator(signal: TradeSignal): ActionCandidate | nul
 
     if (prev && now - prev.ts < DUPLICATE_WINDOW_MS) {
       const nearIdenticalPrice = prev.price === null || price === null || Math.abs(prev.price - price) / Math.max(Math.abs(prev.price), 1) < 0.0005;
-      if (nearIdenticalPrice) return null;
+      if (nearIdenticalPrice) {
+        console.log('[TRACE decision.dedup_blocked]', {
+          symbol: signal.symbol,
+          side,
+          variantId,
+          signalId: `${signal.timestamp}:${signal.source}:${variantId}`,
+          price,
+        });
+        return null;
+      }
     }
 
     lastActionByKey.set(dedupKey, { ts: now, price });

@@ -1,10 +1,12 @@
 services:
   backend:
+    container_name: aether-backend
     build: ./backend
     ports:
       - "3000:3000"
 
   frontend:
+    container_name: aether-frontend
     build: ./frontend
     ports:
       - "8080:80"
