@@ -42,9 +42,9 @@ const MarketCards: React.FC = () => {
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: 'repeat(6, minmax(130px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
       gap: 12,
-      marginBottom: 12,
+      marginBottom: 6,
     }}>
       {marketData.map((item) => {
         const positive = item.change24h >= 0;

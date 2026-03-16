@@ -37,34 +37,39 @@ const DashboardPage: React.FC = () => {
   if (error) return <div style={{color:'#f95e5e',fontWeight:700,padding:60}}>Error: {error}</div>;
 
   return (
-    <div>
+    <div style={{ width: '98vw', maxWidth: 1800, margin: '0 auto', padding: '8px 0' }}>
+      {/* Top market overview strip */}
+      <section style={{ marginBottom: 14 }}>
+        <MarketCards />
+      </section>
+
       {/* Main grid w/ terminal layout */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'minmax(0, 1fr) 390px',
-        gap: '30px',
+        gap: '22px',
         minHeight: 640,
-        width: '98vw',
-        maxWidth: 1800,
-        margin: '0 auto',
         alignItems: 'start',
-        padding: '8px 0',
       }}>
         {/* Center workspace: Dominant chart/panels */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <MarketCards />
+        <section style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <ChartPanel />
-          {/* Additive new panels below */}
-          <StrategyPerformanceTable />
-          <StrategyWeightsPanel />
-          <div style={{ display: 'flex', gap: 18, marginBottom:6, alignItems:'flex-start'}}>
+
+          <div className="ui-card" style={{ padding: '14px 16px' }}>
+            <StrategyPerformanceTable />
+          </div>
+          <div className="ui-card" style={{ padding: '14px 16px' }}>
+            <StrategyWeightsPanel />
+          </div>
+
+          <div style={{ display: 'flex', gap: 14, marginBottom: 4, alignItems: 'flex-start' }}>
             <MarketIntelPanel />
             <NewsPanel />
           </div>
         </section>
 
         {/* Right compact operations/info column */}
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: 13, minWidth: 310, maxWidth:420 }}>
+        <aside style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 310, maxWidth: 420 }}>
           <OperatorControlsPanel />
           <OrderBookStub />
           <TradeFlowStub />
