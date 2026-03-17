@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStatus, fetchPortfolio, fetchRuntimeState } from '../api/apiClient';
+import { fetchStatus, fetchPortfolio, fetchOperatorState, fetchRisks } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -13,23 +13,26 @@ const DashboardPage: React.FC = () => {
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [runtime, setRuntime] = useState<any>(null);
+  const [operator, setOperator] = useState<any>(null);
+  const [riskEvents, setRiskEvents] = useState<any[]>([]);
   const [history, setHistory] = useState<Array<{ ts: string; equity: number; exposure: number; openPositions: number; trades: number }>>([]);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
-        const [s, p, rt] = await Promise.all([
+        const [s, p, op, risks] = await Promise.all([
           fetchStatus(),
           fetchPortfolio(),
-          fetchRuntimeState().catch(() => null),
+          fetchOperatorState().catch(() => null),
+          fetchRisks().catch(() => []),
         ]);
         if (!mounted) return;
         setStatus(s);
         const safePortfolio = p && typeof p === 'object' ? p : null;
         setPortfolio(safePortfolio);
-        setRuntime(rt && typeof rt === 'object' ? rt : null);
+        setOperator(op && typeof op === 'object' ? op : null);
+        setRiskEvents(Array.isArray(risks) ? risks.filter(Boolean) : []);
         if (safePortfolio) {
           const openPositions = Array.isArray(safePortfolio?.positions) ? safePortfolio.positions.filter((x: any) => Number(x?.qty || 0) !== 0).length : 0;
           const exposure = Array.isArray(safePortfolio?.positions)
