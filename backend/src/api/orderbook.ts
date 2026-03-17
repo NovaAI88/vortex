@@ -2,13 +2,6 @@ import { Router } from 'express';
 import { getOrderBook } from '../processing/state/orderBookState';
 const router = Router();
 
-const FALLBACK_ORDERBOOK = {
-  bids: [['67085.00', '0.80'], ['67080.50', '0.60']],
-  asks: [['67086.50', '0.75'], ['67090.00', '1.10']],
-  support: '67100.00',
-  resistance: '67300.00',
-};
-
 router.get('/orderbook', (_req, res) => {
   const ob = getOrderBook();
   if (ob) {
@@ -24,8 +17,11 @@ router.get('/orderbook', (_req, res) => {
   }
 
   res.json({
-    source: 'fallback',
-    ...FALLBACK_ORDERBOOK,
+    source: 'unavailable',
+    bids: [],
+    asks: [],
+    support: null,
+    resistance: null,
     timestamp: new Date().toISOString(),
   });
 });

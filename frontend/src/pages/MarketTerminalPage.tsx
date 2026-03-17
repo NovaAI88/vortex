@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchOrderbook, fetchTrades, fetchStatus, fetchDecisions } from '../api/apiClient';
+import { fetchOrderbook, fetchTrades, fetchStatus, fetchDecisions, fetchRuntimeState } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -12,6 +12,7 @@ const MarketTerminalPage: React.FC = () => {
   const [orderbook, setOrderbook] = useState<any>(null);
   const [trades, setTrades] = useState<any[]>([]);
   const [decisions, setDecisions] = useState<any[]>([]);
+  const [runtime, setRuntime] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchedAt, setFetchedAt] = useState<string>('');
@@ -20,12 +21,13 @@ const MarketTerminalPage: React.FC = () => {
     let mounted = true;
     const load = async () => {
       try {
-        const [s, ob, tr, dec] = await Promise.all([fetchStatus(), fetchOrderbook(), fetchTrades(), fetchDecisions()]);
+        const [s, ob, tr, dec, rt] = await Promise.all([fetchStatus(), fetchOrderbook(), fetchTrades(), fetchDecisions(), fetchRuntimeState().catch(() => null)]);
         if (!mounted) return;
         setStatus(s);
         setOrderbook(ob && typeof ob === 'object' ? ob : null);
         setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
         setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
+        setRuntime(rt && typeof rt === 'object' ? rt : null);
         setFetchedAt(new Date().toISOString());
         setError(null);
       } catch (e: any) {
@@ -49,28 +51,30 @@ const MarketTerminalPage: React.FC = () => {
     return Number.isFinite(p) ? p : null;
   }, [bestBid, bestAsk, trades]);
 
+  const activeSymbol = orderbook?.symbol || trades?.[0]?.symbol || 'NO_LIVE_BACKEND_DATA';
+
   return (
     <div>
       <PageHeaderBar
         title="Market Terminal"
         subtitle={loading ? 'Loading…' : 'Real backend order book, trades and decisions'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : 'LIVE'}
-        activeSymbol="BTCUSDT"
+        statusLabel={error ? 'DISCONNECTED' : (runtime?.runtimeState || 'LIVE')}
+        activeSymbol={activeSymbol}
         timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Latest Price" value={fmt(latestPrice)} />
-        <KpiCard label="Best Bid" value={fmt(bestBid)} />
-        <KpiCard label="Best Ask" value={fmt(bestAsk)} />
-        <KpiCard label="Spread" value={fmt(spread)} />
-        <KpiCard label="Trades" value={trades.length} />
-        <KpiCard label="Decisions" value={decisions.length} />
+        <KpiCard label="Latest Price" value={latestPrice !== null ? fmt(latestPrice) : 'No live backend data'} />
+        <KpiCard label="Best Bid" value={Number.isFinite(bestBid) ? fmt(bestBid) : 'No live backend data'} />
+        <KpiCard label="Best Ask" value={Number.isFinite(bestAsk) ? fmt(bestAsk) : 'No live backend data'} />
+        <KpiCard label="Spread" value={spread !== null ? fmt(spread) : 'No live backend data'} />
+        <KpiCard label="Trades" value={Array.isArray(trades) ? trades.length : 'No live backend data'} />
+        <KpiCard label="Decisions" value={Array.isArray(decisions) ? decisions.length : 'No live backend data'} />
       </KpiStrip>
 
       <div className="ui-card" style={{ marginTop: 8, fontSize: 12, color: '#a8bbdb', padding: 8 }}>
-        Book fetched: {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : '—'}
+        Book fetched: {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : 'No live backend data'} · Source: {orderbook?.source || 'No live backend data'}
       </div>
 
       {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>{error}</div> : null}
@@ -88,7 +92,7 @@ const MarketTerminalPage: React.FC = () => {
                 })}
               </tbody>
             </table>
-          ) : <div style={{ color: '#9cb1d3' }}>No order book data</div>}
+          ) : <div style={{ color: '#9cb1d3' }}>No live backend data (order book).</div>}
         </SectionCard>
 
         <SectionCard title="Latest Trades">
@@ -107,7 +111,7 @@ const MarketTerminalPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          ) : <div style={{ color: '#9cb1d3' }}>No trades yet</div>}
+          ) : <div style={{ color: '#9cb1d3' }}>No trades available from backend yet.</div>}
         </SectionCard>
       </div>
     </div>
