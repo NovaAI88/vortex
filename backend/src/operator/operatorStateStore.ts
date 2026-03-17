@@ -4,6 +4,8 @@ import path from 'node:path';
 export type OperatorState = {
   tradingEnabled: boolean;
   lastUpdated: string;
+  riskOverrideUntil?: string | null;
+  lastAction?: string | null;
 };
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
@@ -13,6 +15,8 @@ function defaultState(): OperatorState {
   return {
     tradingEnabled: true,
     lastUpdated: new Date().toISOString(),
+    riskOverrideUntil: null,
+    lastAction: 'init',
   };
 }
 
@@ -36,6 +40,8 @@ export function loadOperatorState(): OperatorState {
     return {
       tradingEnabled: parsed.tradingEnabled,
       lastUpdated: typeof parsed?.lastUpdated === 'string' ? parsed.lastUpdated : new Date().toISOString(),
+      riskOverrideUntil: typeof parsed?.riskOverrideUntil === 'string' ? parsed.riskOverrideUntil : null,
+      lastAction: typeof parsed?.lastAction === 'string' ? parsed.lastAction : null,
     };
   } catch {
     const fallback = defaultState();
@@ -49,6 +55,8 @@ export function saveOperatorState(next: OperatorState): OperatorState {
   const safe: OperatorState = {
     tradingEnabled: !!next.tradingEnabled,
     lastUpdated: next.lastUpdated || new Date().toISOString(),
+    riskOverrideUntil: typeof next.riskOverrideUntil === 'string' ? next.riskOverrideUntil : null,
+    lastAction: typeof next.lastAction === 'string' ? next.lastAction : null,
   };
   fs.writeFileSync(STATE_FILE, JSON.stringify(safe, null, 2), 'utf8');
   return safe;

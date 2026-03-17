@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStatus, fetchPortfolio, fetchOperatorState, fetchRisks } from '../api/apiClient';
+import { fetchStatus, fetchPortfolio, fetchRuntimeState } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -13,26 +13,23 @@ const DashboardPage: React.FC = () => {
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [operator, setOperator] = useState<any>(null);
-  const [riskEvents, setRiskEvents] = useState<any[]>([]);
+  const [runtime, setRuntime] = useState<any>(null);
   const [history, setHistory] = useState<Array<{ ts: string; equity: number; exposure: number; openPositions: number; trades: number }>>([]);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
-        const [s, p, op, risks] = await Promise.all([
+        const [s, p, rt] = await Promise.all([
           fetchStatus(),
           fetchPortfolio(),
-          fetchOperatorState().catch(() => null),
-          fetchRisks().catch(() => []),
+          fetchRuntimeState().catch(() => null),
         ]);
         if (!mounted) return;
         setStatus(s);
         const safePortfolio = p && typeof p === 'object' ? p : null;
         setPortfolio(safePortfolio);
-        setOperator(op && typeof op === 'object' ? op : null);
-        setRiskEvents(Array.isArray(risks) ? risks.filter(Boolean) : []);
+        setRuntime(rt && typeof rt === 'object' ? rt : null);
         if (safePortfolio) {
           const openPositions = Array.isArray(safePortfolio?.positions) ? safePortfolio.positions.filter((x: any) => Number(x?.qty || 0) !== 0).length : 0;
           const exposure = Array.isArray(safePortfolio?.positions)
@@ -110,7 +107,7 @@ const DashboardPage: React.FC = () => {
         <KpiCard label="Cash" value={fmt(portfolio?.cash ?? portfolio?.balance)} />
         <KpiCard label="Equity" value={fmt(portfolio?.equity ?? portfolio?.totalValue)} />
         <KpiCard label="Realized PnL" value={fmt(portfolio?.pnl)} tone={Number(portfolio?.pnl || 0) >= 0 ? 'positive' : 'negative'} />
-        <KpiCard label="Open Positions" value={positions.length || 'Data unavailable'} />
+        <KpiCard label="Open Positions" value={Array.isArray(portfolio?.positions) ? positions.length : 'No data'} />
       </KpiStrip>
 
       <div className="ui-card" style={{ marginTop: 10, padding: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>

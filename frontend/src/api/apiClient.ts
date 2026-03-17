@@ -45,6 +45,30 @@ export async function fetchRisks() {
   return resp.json();
 }
 
+export async function fetchRiskStatus() {
+  const resp = await fetch(`${API_BASE}/api/risk/status`);
+  if (!resp.ok) throw new Error('Failed to fetch risk status');
+  return resp.json();
+}
+
+export async function resetRisk() {
+  const resp = await fetch(`${API_BASE}/api/risk/reset`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to reset risk');
+  return resp.json();
+}
+
+export async function fetchRuntimeState() {
+  const resp = await fetch(`${API_BASE}/api/runtime/state`);
+  if (!resp.ok) throw new Error('Failed to fetch runtime state');
+  return resp.json();
+}
+
+export async function fetchPipelineTrace() {
+  const resp = await fetch(`${API_BASE}/api/pipeline/trace`);
+  if (!resp.ok) throw new Error('Failed to fetch pipeline trace');
+  return resp.json();
+}
+
 export async function fetchStrategyPerformance() {
   const resp = await fetch(`${API_BASE}/api/strategies/performance`);
   if (!resp.ok) throw new Error('Failed to fetch strategy performance');
@@ -108,6 +132,22 @@ export async function startTrading() {
 export async function pauseTrading() {
   const resp = await fetch(`${API_BASE}/api/operator/pause`, { method: 'POST' });
   if (!resp.ok) throw new Error('Failed to pause trading');
+  return resp.json();
+}
+
+export async function overrideRisk(minutes = 15) {
+  const resp = await fetch(`${API_BASE}/api/operator/override-risk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ minutes }),
+  });
+  if (!resp.ok) throw new Error('Failed to enable risk override');
+  return resp.json();
+}
+
+export async function clearRiskOverride() {
+  const resp = await fetch(`${API_BASE}/api/operator/override-risk/clear`, { method: 'POST' });
+  if (!resp.ok) throw new Error('Failed to clear risk override');
   return resp.json();
 }
 

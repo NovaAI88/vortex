@@ -38,7 +38,7 @@ const NewsIntelligencePage: React.FC = () => {
         title="News Intelligence Terminal"
         subtitle={loading ? 'Loading…' : 'No dedicated news feed endpoint wired yet'}
         status={error ? 'critical' : status?.status === 'ok' ? 'warning' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : 'NOT WIRED'}
+        statusLabel={error ? 'DISCONNECTED' : 'INACTIVE'}
         activeSymbol="NEWS"
         timestamp={status?.timestamp}
       />
@@ -51,7 +51,7 @@ const NewsIntelligencePage: React.FC = () => {
       {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>Backend not connected.</div> : null}
       <SectionCard title="Truthful State">
         <div style={{ color: '#9cb1d3', fontSize: 13 }}>
-          News intelligence feed is not connected in backend yet. This page intentionally shows no fabricated headlines or sentiment cards.
+          INACTIVE: backend endpoint for dedicated news feed is missing (expected something like `/api/news`). This page intentionally shows no fabricated headlines or sentiment cards.
         </div>
       </SectionCard>
     </div>

@@ -40,7 +40,7 @@ const NarrativeEdgePage: React.FC = () => {
         title="Narrative Edge Terminal"
         subtitle={loading ? 'Loading…' : 'Narrative engine not wired yet; showing only backend telemetry context'}
         status={error ? 'critical' : 'info'}
-        statusLabel={error ? 'DISCONNECTED' : 'NOT WIRED'}
+        statusLabel={error ? 'DISCONNECTED' : 'INACTIVE'}
         activeSymbol="NARRATIVE"
         timestamp={status?.timestamp}
       />
@@ -53,7 +53,7 @@ const NarrativeEdgePage: React.FC = () => {
 
       <SectionCard title="Truthful State">
         <div style={{ color: '#9cb1d3', fontSize: 13 }}>
-          Narrative engine not wired yet. No fabricated macro stories or synthetic narrative scoring is displayed.
+          INACTIVE: backend narrative endpoint is missing (expected something like `/api/narrative`). No fabricated macro stories or synthetic narrative scoring is displayed.
         </div>
       </SectionCard>
     </div>

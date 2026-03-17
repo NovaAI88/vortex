@@ -5,7 +5,7 @@ import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
 
-const fmt = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'Data unavailable');
+const fmt = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—');
 
 const MarketTerminalPage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
@@ -14,6 +14,7 @@ const MarketTerminalPage: React.FC = () => {
   const [decisions, setDecisions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<string>('');
 
   useEffect(() => {
     let mounted = true;
@@ -25,6 +26,7 @@ const MarketTerminalPage: React.FC = () => {
         setOrderbook(ob && typeof ob === 'object' ? ob : null);
         setTrades(Array.isArray(tr) ? tr.filter(Boolean) : []);
         setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
+        setFetchedAt(new Date().toISOString());
         setError(null);
       } catch (e: any) {
         if (!mounted) return;
@@ -63,24 +65,49 @@ const MarketTerminalPage: React.FC = () => {
         <KpiCard label="Best Bid" value={fmt(bestBid)} />
         <KpiCard label="Best Ask" value={fmt(bestAsk)} />
         <KpiCard label="Spread" value={fmt(spread)} />
-        <KpiCard label="Trades" value={trades.length || 'Data unavailable'} />
-        <KpiCard label="Decisions" value={decisions.length || 'Data unavailable'} />
+        <KpiCard label="Trades" value={trades.length} />
+        <KpiCard label="Decisions" value={decisions.length} />
       </KpiStrip>
+
+      <div className="ui-card" style={{ marginTop: 8, fontSize: 12, color: '#a8bbdb', padding: 8 }}>
+        Book fetched: {fetchedAt ? new Date(fetchedAt).toLocaleTimeString() : '—'}
+      </div>
 
       {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>{error}</div> : null}
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
-        <SectionCard title="Order Book">
+        <SectionCard title="Order Book Ladder">
           {orderbook?.bids?.length || orderbook?.asks?.length ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div>{(orderbook?.bids || []).slice(0, 10).map((b: any, i: number) => <div key={i}>{b?.[0] ?? 'Data unavailable'} · {b?.[1] ?? 'Data unavailable'}</div>)}</div>
-              <div>{(orderbook?.asks || []).slice(0, 10).map((a: any, i: number) => <div key={i}>{a?.[0] ?? 'Data unavailable'} · {a?.[1] ?? 'Data unavailable'}</div>)}</div>
-            </div>
-          ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
+            <table className="ui-table" style={{ width: '100%' }}>
+              <thead><tr><th>Bid Px</th><th>Bid Qty</th><th>Ask Px</th><th>Ask Qty</th></tr></thead>
+              <tbody>
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const b = orderbook?.bids?.[i] || [];
+                  const a = orderbook?.asks?.[i] || [];
+                  return <tr key={i}><td>{b?.[0] ?? '—'}</td><td>{b?.[1] ?? '—'}</td><td>{a?.[0] ?? '—'}</td><td>{a?.[1] ?? '—'}</td></tr>;
+                })}
+              </tbody>
+            </table>
+          ) : <div style={{ color: '#9cb1d3' }}>No order book data</div>}
         </SectionCard>
 
         <SectionCard title="Latest Trades">
-          {trades.length ? trades.slice(0, 14).map((t: any, i: number) => <div key={i}>{t?.symbol ?? 'Data unavailable'} · {String(t?.side || '—').toUpperCase()} · {fmt(t?.price)} · {fmt(t?.qty)}</div>) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
+          {trades.length ? (
+            <table className="ui-table" style={{ width: '100%' }}>
+              <thead><tr><th>Time</th><th>Side</th><th>Price</th><th>Qty</th><th>Status</th></tr></thead>
+              <tbody>
+                {trades.slice(0, 14).map((t: any, i: number) => (
+                  <tr key={i}>
+                    <td>{t?.timestamp ? new Date(t.timestamp).toLocaleTimeString() : '—'}</td>
+                    <td>{String(t?.side || '—').toUpperCase()}</td>
+                    <td>{fmt(Number(t?.price))}</td>
+                    <td>{fmt(Number(t?.qty))}</td>
+                    <td>{t?.status || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div style={{ color: '#9cb1d3' }}>No trades yet</div>}
         </SectionCard>
       </div>
     </div>

@@ -10,7 +10,10 @@ import engineRouter from './engine';
 import portfolioRouter from './portfolio';
 import alertsRouter from './alerts';
 import operatorRouter from '../operator/operatorRoutes';
+import runtimeRouter from './runtime';
+import pipelineRouter from './pipeline';
 const app = express();
+app.use(express.json());
 
 app.get('/api/ping', (req, res) => res.status(200).send('pong'));
 app.get('/api/status', (req, res) => res.status(200).json({status: 'ok', uptime: process.uptime(), timestamp: new Date().toISOString(), build: process.env.BUILD_HASH || 'dev'}));
@@ -34,6 +37,8 @@ app.use('/api', engineRouter);
 app.use('/api', portfolioRouter);
 app.use('/api', alertsRouter);
 app.use('/api', operatorRouter);
+app.use('/api', runtimeRouter);
+app.use('/api', pipelineRouter);
 import strategiesRouter from './strategies';
 app.use('/api', strategiesRouter);
 

@@ -93,6 +93,17 @@ const PortfolioPage: React.FC = () => {
     return Array.from(idSet);
   }, [positions, variantBooks]);
 
+  const hasAnyOpenPosition = positions.some((p: any) => Number(p?.qty || 0) !== 0);
+  const openByVariant = useMemo(() => {
+    const m: Record<string, number> = {};
+    positions.forEach((p: any) => {
+      if (Number(p?.qty || 0) === 0) return;
+      const k = String(p?.variantId || 'default');
+      m[k] = (m[k] || 0) + 1;
+    });
+    return m;
+  }, [positions]);
+
   const appendLedger = (item: ManualLedgerItem) => {
     setManualLedger((prev) => [item, ...prev].slice(0, 40));
   };
@@ -185,9 +196,9 @@ const PortfolioPage: React.FC = () => {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
             <button disabled={manualBusy || tradingEnabled === true} onClick={() => runManual('Start Trading', 'operator', () => startTrading(), null, 'operator start')} style={{ background: '#1e2d45', color: '#dff6ff', border: '1px solid #35507a', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>Start Trading</button>
             <button disabled={manualBusy || tradingEnabled === false} onClick={() => runManual('Pause Trading', 'operator', () => pauseTrading(), null, 'operator pause')} style={{ background: '#3a1f2a', color: '#ffdede', border: '1px solid #7b3f4f', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>Pause Trading</button>
-            <button disabled={manualBusy} onClick={() => runManual('Flatten All', 'all', () => manualFlattenAll())} style={{ background: '#3b2430', color: '#ffe1e1', border: '1px solid #7a4a5f', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>Flatten All</button>
+            <button disabled={manualBusy || !hasAnyOpenPosition} onClick={() => runManual('Flatten All', 'all', () => manualFlattenAll())} style={{ background: '#3b2430', color: '#ffe1e1', border: '1px solid #7a4a5f', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>Flatten All</button>
             {variantIds.map((id) => (
-              <button key={id} disabled={manualBusy} onClick={() => runManual('Flatten Variant', id, () => manualFlattenVariant(id), null, `flatten variant ${id}`)} style={{ background: '#2b2f4a', color: '#dce7ff', border: '1px solid #4b5b87', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
+              <button key={id} disabled={manualBusy || !openByVariant[id]} onClick={() => runManual('Flatten Variant', id, () => manualFlattenVariant(id), null, `flatten variant ${id}`)} style={{ background: '#2b2f4a', color: '#dce7ff', border: '1px solid #4b5b87', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>
                 Flatten {id}
               </button>
             ))}

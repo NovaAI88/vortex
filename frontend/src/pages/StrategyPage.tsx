@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStrategyPerformance, fetchStrategyWeights, fetchStatus } from '../api/apiClient';
+import { fetchStrategyPerformance, fetchStrategyWeights, fetchStatus, fetchRuntimeState } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -10,6 +10,7 @@ const COLORS = ['#60d9ff', '#9f8bff', '#5ff5c8', '#ffb36b', '#ff7f9d', '#77a7ff'
 
 const StrategyPage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
+  const [runtime, setRuntime] = useState<any>(null);
   const [performance, setPerformance] = useState<any[]>([]);
   const [weights, setWeights] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -19,13 +20,15 @@ const StrategyPage: React.FC = () => {
     let mounted = true;
     const load = async () => {
       try {
-        const [s, perfRes, weightsRes] = await Promise.all([
+        const [s, rt, perfRes, weightsRes] = await Promise.all([
           fetchStatus(),
+          fetchRuntimeState().catch(() => null),
           fetchStrategyPerformance().catch(() => []),
           fetchStrategyWeights().catch(() => ({})),
         ]);
         if (!mounted) return;
         setStatus(s);
+        setRuntime(rt);
         setPerformance(Array.isArray(perfRes) ? perfRes.filter(Boolean) : []);
         setWeights(weightsRes && typeof weightsRes === 'object' ? weightsRes : {});
         setError(null);
@@ -41,7 +44,7 @@ const StrategyPage: React.FC = () => {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  const perfChart = useMemo(() => performance.map((p: any) => ({ name: `${p?.strategyId || '—'}:${p?.variantId || '—'}`, pnl: Number(p?.realizedPnL || 0) })), [performance]);
+  const perfChart = useMemo(() => performance.map((p: any) => ({ name: `${p?.variantId || 'default'} (${p?.strategyId || 'unknown'})`, pnl: Number(p?.realizedPnL || 0) })), [performance]);
   const weightChart = useMemo(() => Object.entries(weights).map(([k, v]) => ({ name: k, value: Number(v || 0) })), [weights]);
 
   return (
@@ -50,17 +53,21 @@ const StrategyPage: React.FC = () => {
         title="Strategy Intelligence"
         subtitle={loading ? 'Loading…' : 'Real strategy weights/performance endpoints only'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : 'LIVE'}
+        statusLabel={error ? 'DISCONNECTED' : (runtime?.runtimeState || 'LIVE')}
         activeSymbol="STRATEGY"
         timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Strategy Rows" value={performance.length || 'Data unavailable'} />
-        <KpiCard label="Weight Keys" value={Object.keys(weights).length || 'Data unavailable'} />
+        <KpiCard label="Strategy Rows" value={performance.length} />
+        <KpiCard label="Weight Keys" value={Object.keys(weights).length} />
       </KpiStrip>
 
-      {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>{error}</div> : null}
+      <SectionCard title="Endpoint Truth" style={{ marginTop: 10 } as any}>
+        <div style={{ fontSize: 12, color: '#c7d6ef' }}>
+          Source endpoints: `/api/strategies/performance`, `/api/strategies/weights`. {Object.keys(weights).length <= 1 ? 'Single weight key is expected if only one strategy family is active.' : ''}
+        </div>
+      </SectionCard>
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
         <SectionCard title="Variant Performance">
@@ -68,20 +75,15 @@ const StrategyPage: React.FC = () => {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={perfChart}><CartesianGrid stroke="#233" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="pnl" fill="#62d7ff" /></BarChart>
             </ResponsiveContainer>
-          ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
+          ) : <div style={{ color: '#9cb1d3' }}>No performance rows yet</div>}
         </SectionCard>
 
         <SectionCard title="Strategy Weights">
-          {weightChart.length ? (
+          {weightChart.length > 1 ? (
             <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie data={weightChart} dataKey="value" nameKey="name" outerRadius={90}>
-                  {weightChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+              <PieChart><Pie data={weightChart} dataKey="value" nameKey="name" outerRadius={90}>{weightChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /></PieChart>
             </ResponsiveContainer>
-          ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
+          ) : <div style={{ color: '#9cb1d3' }}>{weightChart.length === 1 ? `Single active weight: ${weightChart[0].name}=${weightChart[0].value}` : 'No weight data yet'}</div>}
         </SectionCard>
       </div>
     </div>
