@@ -1,10 +1,14 @@
-// Lightweight paper trading portfolio ledger
+// Lightweight paper trading portfolio ledger with disk persistence
+import fs from 'node:fs';
+import path from 'node:path';
 import { ExecutionResult } from '../../models/ExecutionResult';
 import { recordTrade } from '../../intelligence/performance/strategyPerformanceTracker';
 import { updatePortfolio } from './portfolioTracker';
 import { updatePosition } from './positionTracker';
 
 const START_BALANCE = 10000;
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const PORTFOLIO_FILE = path.join(DATA_DIR, 'portfolio-state.json');
 
 type StoredPosition = {
   qty: number;
@@ -28,15 +32,91 @@ type LedgerBook = {
   trades: any[];
 };
 
-let globalBook: LedgerBook = {
-  balance: START_BALANCE,
-  equity: START_BALANCE,
-  realizedPnL: 0,
-  positions: {}, // key: symbol::variant
-  trades: [],
+type ManualActionLedgerItem = {
+  timestamp: string;
+  action: string;
+  target?: string;
+  fraction?: number | null;
+  result: 'success' | 'failed';
+  realizedAmount?: number | null;
+  note?: string;
 };
 
+type PersistedState = {
+  globalBook: LedgerBook;
+  variantBooks: Record<string, LedgerBook>;
+  manualActions: ManualActionLedgerItem[];
+};
+
+function defaultBook(): LedgerBook {
+  return {
+    balance: START_BALANCE,
+    equity: START_BALANCE,
+    realizedPnL: 0,
+    positions: {},
+    trades: [],
+  };
+}
+
+let globalBook: LedgerBook = defaultBook();
 let variantBooks: Record<string, LedgerBook> = {};
+let manualActions: ManualActionLedgerItem[] = [];
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function sanitizeBook(raw: any): LedgerBook {
+  const b = raw && typeof raw === 'object' ? raw : {};
+  return {
+    balance: Number.isFinite(Number(b.balance)) ? Number(b.balance) : START_BALANCE,
+    equity: Number.isFinite(Number(b.equity)) ? Number(b.equity) : START_BALANCE,
+    realizedPnL: Number.isFinite(Number(b.realizedPnL)) ? Number(b.realizedPnL) : 0,
+    positions: b.positions && typeof b.positions === 'object' ? b.positions : {},
+    trades: Array.isArray(b.trades) ? b.trades : [],
+  };
+}
+
+function persistState() {
+  ensureDataDir();
+  const payload: PersistedState = {
+    globalBook,
+    variantBooks,
+    manualActions: manualActions.slice(-300),
+  };
+  fs.writeFileSync(PORTFOLIO_FILE, JSON.stringify(payload, null, 2), 'utf8');
+}
+
+function hydrateState() {
+  ensureDataDir();
+  if (!fs.existsSync(PORTFOLIO_FILE)) {
+    persistState();
+    return;
+  }
+
+  try {
+    const raw = fs.readFileSync(PORTFOLIO_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+
+    globalBook = sanitizeBook(parsed?.globalBook);
+
+    const vb = parsed?.variantBooks && typeof parsed.variantBooks === 'object' ? parsed.variantBooks : {};
+    const sanitizedVariants: Record<string, LedgerBook> = {};
+    Object.entries(vb).forEach(([k, v]) => {
+      sanitizedVariants[k] = sanitizeBook(v);
+    });
+    variantBooks = sanitizedVariants;
+
+    manualActions = Array.isArray(parsed?.manualActions) ? parsed.manualActions.filter(Boolean).slice(-300) : [];
+  } catch {
+    globalBook = defaultBook();
+    variantBooks = {};
+    manualActions = [];
+    persistState();
+  }
+}
+
+hydrateState();
 
 function variantKey(variantId?: string | null) {
   return variantId || 'default';
@@ -65,13 +145,7 @@ function newPosition(symbol: string, variantId?: string | null, price = 0): Stor
 function getOrCreateVariantBook(variantId?: string | null): LedgerBook {
   const key = variantKey(variantId);
   if (!variantBooks[key]) {
-    variantBooks[key] = {
-      balance: START_BALANCE,
-      equity: START_BALANCE,
-      realizedPnL: 0,
-      positions: {}, // key: symbol only inside a variant book
-      trades: [],
-    };
+    variantBooks[key] = defaultBook();
   }
   return variantBooks[key];
 }
@@ -112,6 +186,7 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
 
   if (exec) {
     book.trades.push({ ...exec, symbol: symbolForPosition, qty: signedQty, price, variantId: variantId || null, timestamp: new Date().toISOString() });
+    while (book.trades.length > 500) book.trades.shift();
   }
 
   book.equity = book.balance + Object.values(book.positions).reduce((eq, p) => {
@@ -122,39 +197,33 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
   }, 0);
 }
 
+export function appendManualAction(action: ManualActionLedgerItem) {
+  manualActions.unshift(action);
+  manualActions = manualActions.slice(0, 300);
+  persistState();
+}
+
+export function getManualActions() {
+  return manualActions.slice(0, 100);
+}
+
 export function resetPortfolio() {
-  globalBook = {
-    balance: START_BALANCE,
-    equity: START_BALANCE,
-    realizedPnL: 0,
-    positions: {},
-    trades: [],
-  };
+  globalBook = defaultBook();
   variantBooks = {};
+  manualActions = [];
+  persistState();
 }
 
 export function recordExecution(exec: ExecutionResult) {
   if (!exec || exec.status !== 'simulated') return;
   if (!exec.qty || exec.qty <= 0) return;
 
-  console.log('[TRACE portfolio.input]', {
-    symbol: exec.symbol,
-    side: exec.side,
-    variantId: exec.variantId,
-    price: exec.price,
-    qty: exec.qty,
-    signalId: exec.signalId,
-    actionCandidateId: exec.actionCandidateId,
-    riskDecisionId: exec.riskDecisionId,
-    executionRequestId: exec.executionRequestId,
-  });
-
   try { recordTrade(exec); } catch {}
 
   const symbol = exec.symbol || 'BTCUSDT';
   const vId = exec.variantId || null;
   const signedQty = exec.side === 'buy' ? exec.qty : -exec.qty;
-  const price = Number(exec.price || exec.fillPrice || exec.avgPrice || 0);
+  const price = Number(exec.price || (exec as any).fillPrice || (exec as any).avgPrice || 0);
 
   const globalPositionKey = compositePositionKey(symbol, vId);
   applyExecution(globalBook, globalPositionKey, symbol, signedQty, price, vId, exec);
@@ -162,20 +231,9 @@ export function recordExecution(exec: ExecutionResult) {
   const vBook = getOrCreateVariantBook(vId);
   applyExecution(vBook, symbol, symbol, signedQty, price, vId, exec);
 
-  console.log('[TRACE portfolio.output]', {
-    symbol,
-    side: exec.side,
-    variantId: vId,
-    qty: signedQty,
-    price,
-    globalPositionQty: globalBook.positions[globalPositionKey]?.qty,
-    variantPositionQty: vBook.positions[symbol]?.qty,
-    globalEquity: Number(globalBook.equity.toFixed(2)),
-    variantEquity: Number(vBook.equity.toFixed(2)),
-  });
-
   updatePortfolio(exec);
   updatePosition(exec);
+  persistState();
 }
 
 export function getPortfolio() {
@@ -225,10 +283,11 @@ export function getPortfolio() {
     equity: Number(globalBook.equity.toFixed(2)),
     positions: frontendPositions,
     pnl: Number(globalBook.realizedPnL.toFixed(2)),
-    trades: globalBook.trades.slice(-20).reverse(),
+    trades: globalBook.trades.slice(-100).reverse(),
     totalValue: Number(globalBook.equity.toFixed(2)),
     cash: Number(globalBook.balance.toFixed(2)),
     positionsValue: Number(positionsValue.toFixed(2)),
     variantPortfolios,
+    manualActions: getManualActions(),
   };
 }

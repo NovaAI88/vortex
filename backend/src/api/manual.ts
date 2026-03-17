@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getPortfolio, recordExecution } from '../portfolio/state/portfolioLedger';
+import { appendManualAction, getPortfolio, recordExecution } from '../portfolio/state/portfolioLedger';
 
 const router = Router();
 
@@ -51,7 +51,9 @@ router.post('/manual/close-position', (req, res) => {
     const afterPnl = Number(after?.pnl || 0);
     const realizedAmount = Number((afterPnl - beforePnl).toFixed(6));
 
-    return res.json({ ok: true, action: 'close-position', execution: exec, realizedAmount, timestamp: new Date().toISOString(), portfolio: after });
+    const timestamp = new Date().toISOString();
+    appendManualAction({ timestamp, action: 'close-position', target: `${symbol}:${variantId || 'default'}`, fraction: 1, result: 'success', realizedAmount, note: 'manual close' });
+    return res.json({ ok: true, action: 'close-position', execution: exec, realizedAmount, timestamp, portfolio: after });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'manual close failed' });
   }
@@ -80,7 +82,9 @@ router.post('/manual/take-profit', (req, res) => {
     const afterPnl = Number(after?.pnl || 0);
     const realizedAmount = Number((afterPnl - beforePnl).toFixed(6));
 
-    return res.json({ ok: true, action: 'take-profit', fraction: safeFraction, execution: exec, realizedAmount, timestamp: new Date().toISOString(), portfolio: after });
+    const timestamp = new Date().toISOString();
+    appendManualAction({ timestamp, action: 'take-profit', target: `${symbol}:${variantId || 'default'}`, fraction: safeFraction, result: 'success', realizedAmount, note: 'manual take profit' });
+    return res.json({ ok: true, action: 'take-profit', fraction: safeFraction, execution: exec, realizedAmount, timestamp, portfolio: after });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'manual take-profit failed' });
   }
@@ -112,7 +116,9 @@ router.post('/manual/flatten-variant', (req, res) => {
     const afterPnl = Number(after?.pnl || 0);
     const realizedAmount = Number((afterPnl - beforePnl).toFixed(6));
 
-    return res.json({ ok: true, action: 'flatten-variant', variantId, executions: execs, realizedAmount, timestamp: new Date().toISOString(), portfolio: after });
+    const timestamp = new Date().toISOString();
+    appendManualAction({ timestamp, action: 'flatten-variant', target: String(variantId), fraction: null, result: 'success', realizedAmount, note: 'manual flatten variant' });
+    return res.json({ ok: true, action: 'flatten-variant', variantId, executions: execs, realizedAmount, timestamp, portfolio: after });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'manual flatten-variant failed' });
   }
@@ -141,7 +147,9 @@ router.post('/manual/flatten-all', (_req, res) => {
     const afterPnl = Number(after?.pnl || 0);
     const realizedAmount = Number((afterPnl - beforePnl).toFixed(6));
 
-    return res.json({ ok: true, action: 'flatten-all', executions: execs, realizedAmount, timestamp: new Date().toISOString(), portfolio: after });
+    const timestamp = new Date().toISOString();
+    appendManualAction({ timestamp, action: 'flatten-all', target: 'all', fraction: null, result: 'success', realizedAmount, note: 'manual flatten all' });
+    return res.json({ ok: true, action: 'flatten-all', executions: execs, realizedAmount, timestamp, portfolio: after });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'manual flatten-all failed' });
   }
