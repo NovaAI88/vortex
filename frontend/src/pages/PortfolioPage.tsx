@@ -4,6 +4,7 @@ import {
   fetchStatus,
   fetchOperatorState,
   fetchRisks,
+  fetchRuntimeState,
   startTrading,
   pauseTrading,
   manualClosePosition,
@@ -42,21 +43,41 @@ const PortfolioPage: React.FC = () => {
   const [manualResult, setManualResult] = useState<any>(null);
   const [manualLedger, setManualLedger] = useState<ManualLedgerItem[]>([]);
   const [riskEvents, setRiskEvents] = useState<any[]>([]);
+  const [runtime, setRuntime] = useState<any>(null);
 
   const load = async (mounted = true) => {
     setError(null);
     try {
-      const [s, op, p, risks] = await Promise.all([
+      const [s, op, p, risks, rt] = await Promise.all([
         fetchStatus(),
         fetchOperatorState().catch(() => null),
         fetchPortfolio(),
         fetchRisks().catch(() => []),
+        fetchRuntimeState().catch(() => null),
       ]);
       if (!mounted) return;
       setStatus(s);
       setOperator(op && typeof op === 'object' ? op : null);
-      setPortfolio(p && typeof p === 'object' ? p : null);
+      const safePortfolio = p && typeof p === 'object' ? p : null;
+      setPortfolio(safePortfolio);
       setRiskEvents(Array.isArray(risks) ? risks.filter(Boolean) : []);
+      setRuntime(rt && typeof rt === 'object' ? rt : null);
+      const backendManual = Array.isArray(safePortfolio?.manualActions) ? safePortfolio.manualActions.filter(Boolean) : [];
+      if (backendManual.length) {
+        setManualLedger((prev) => {
+          const failedLocal = prev.filter((x) => x?.result === 'failed');
+          const normalized = backendManual.map((m: any) => ({
+            timestamp: m?.timestamp || new Date().toISOString(),
+            action: m?.action || 'manual-action',
+            target: m?.target || '—',
+            fraction: typeof m?.fraction === 'number' ? m.fraction : null,
+            result: m?.result === 'failed' ? 'failed' : 'success',
+            realizedAmount: typeof m?.realizedAmount === 'number' ? m.realizedAmount : null,
+            note: m?.note,
+          } as ManualLedgerItem));
+          return [...failedLocal, ...normalized].slice(0, 80);
+        });
+      }
     } catch (e: any) {
       if (!mounted) return;
       setError(e?.message || 'Backend not connected');
@@ -72,7 +93,9 @@ const PortfolioPage: React.FC = () => {
     return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  const positions = Array.isArray(portfolio?.positions) ? portfolio.positions.filter(Boolean) : [];
+  const positions = Array.isArray(portfolio?.positions)
+    ? portfolio.positions.filter((x: any) => x && Number(x?.qty || 0) !== 0)
+    : [];
   const trades = Array.isArray(portfolio?.trades) ? portfolio.trades.filter(Boolean) : [];
   const variantBooks = Array.isArray(portfolio?.variantPortfolios) ? portfolio.variantPortfolios.filter(Boolean) : [];
 
@@ -87,7 +110,7 @@ const PortfolioPage: React.FC = () => {
   );
 
   const variantIds = useMemo(() => {
-    const idSet = new Set<string>(['v1', 'v2', 'v3']);
+    const idSet = new Set<string>();
     positions.forEach((p: any) => { if (p?.variantId) idSet.add(String(p.variantId)); });
     variantBooks.forEach((v: any) => { if (v?.variantId) idSet.add(String(v.variantId)); });
     return Array.from(idSet);
@@ -151,11 +174,11 @@ const PortfolioPage: React.FC = () => {
   const latestRiskBlock = (riskEvents || []).find((r: any) => r?.status?.includes?.('blocked') || r?.approved === false);
   const runtimeState = error
     ? 'DISCONNECTED'
-    : tradingEnabled === false
+    : (runtime?.runtimeState || (tradingEnabled === false
       ? 'PAUSED'
       : latestRiskBlock
-        ? 'RISK-BLOCKED'
-        : 'LIVE';
+        ? 'RISK_BLOCKED'
+        : 'LIVE'));
 
   return (
     <div>
@@ -184,7 +207,7 @@ const PortfolioPage: React.FC = () => {
           {runtimeState}
         </span>
         <span style={{ padding: '4px 8px', borderRadius: 999, background: '#1c2638', color: '#dbe7ff', border: '1px solid #334b78', fontSize: 12 }}>
-          Trading: {tradingEnabled === false ? 'Paused' : 'Enabled'}
+          Trading: {tradingEnabled === true ? 'Enabled' : tradingEnabled === false ? 'Paused' : 'No live backend data'}
         </span>
         <span style={{ padding: '4px 8px', borderRadius: 999, background: '#2a223b', color: '#e8ddff', border: '1px solid #5d4b8a', fontSize: 12 }}>
           Risk blocks (recent): {Array.isArray(riskEvents) ? riskEvents.filter((r: any) => r?.status?.includes?.('blocked') || r?.approved === false).length : 0}
@@ -202,8 +225,9 @@ const PortfolioPage: React.FC = () => {
                 Flatten {id}
               </button>
             ))}
+            {!variantIds.length ? <span style={{ fontSize: 12, color: '#9cb1d3' }}>Variant flatten controls: Not yet wired (no variant ids in live portfolio data).</span> : null}
           </div>
-          <div style={{ fontSize: 12, color: '#a8bbdb' }}>Last manual action result: {manualResult ? `${manualResult?.action || 'action'} (${manualResult?.ok ? 'success' : 'failed'})` : 'None yet'}</div>
+          <div style={{ fontSize: 12, color: '#a8bbdb' }}>Last manual action result: {manualResult ? `${manualResult?.action || 'manual-action'} (${manualResult?.ok ? 'success' : 'failed'})` : 'No live backend data yet'}</div>
           <div style={{ fontSize: 12, color: '#a8bbdb', marginTop: 4 }}>Last action timestamp: {manualResult?.timestamp ? new Date(manualResult.timestamp).toLocaleString() : '—'}</div>
           <div style={{ fontSize: 12, color: '#a8bbdb', marginTop: 4 }}>Last realized amount: {typeof manualResult?.realizedAmount === 'number' ? fmt(manualResult.realizedAmount, 4) : '—'}</div>
           {manualError ? <div style={{ marginTop: 8, color: '#ffb8b8', fontSize: 12 }}>{manualError}</div> : null}
@@ -263,7 +287,7 @@ const PortfolioPage: React.FC = () => {
                       <td>{fmt(p?.avgEntry)}</td>
                       <td>{fmt(mark)}</td>
                       <td>{fmt(p?.unrealizedPnL)}</td>
-                      <td>—</td>
+                      <td><span style={{ color: '#9cb1d3' }}>Not yet wired</span></td>
                       <td>{fmt(exposure)}</td>
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -284,10 +308,10 @@ const PortfolioPage: React.FC = () => {
                       <td>{age}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          <button disabled={manualBusy} onClick={() => runManual('Take Profit', `${p?.symbol || 'BTCUSDT'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol || 'BTCUSDT', p?.variantId || null, 0.25), 0.25)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP25</button>
-                          <button disabled={manualBusy} onClick={() => runManual('Take Profit', `${p?.symbol || 'BTCUSDT'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol || 'BTCUSDT', p?.variantId || null, 0.5), 0.5)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP50</button>
-                          <button disabled={manualBusy} onClick={() => runManual('Take Profit', `${p?.symbol || 'BTCUSDT'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol || 'BTCUSDT', p?.variantId || null, 0.75), 0.75)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP75</button>
-                          <button disabled={manualBusy} onClick={() => runManual('Close Position', `${p?.symbol || 'BTCUSDT'}:${p?.variantId || 'default'}`, () => manualClosePosition(p?.symbol || 'BTCUSDT', p?.variantId || null))} style={{ background: '#3b2430', color: '#ffe1e1', border: '1px solid #7a4a5f', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>Close</button>
+                          <button disabled={manualBusy || !p?.symbol} onClick={() => runManual('Take Profit', `${p?.symbol || 'unknown'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol, p?.variantId || null, 0.25), 0.25)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP25</button>
+                          <button disabled={manualBusy || !p?.symbol} onClick={() => runManual('Take Profit', `${p?.symbol || 'unknown'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol, p?.variantId || null, 0.5), 0.5)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP50</button>
+                          <button disabled={manualBusy || !p?.symbol} onClick={() => runManual('Take Profit', `${p?.symbol || 'unknown'}:${p?.variantId || 'default'}`, () => manualTakeProfit(p?.symbol, p?.variantId || null, 0.75), 0.75)} style={{ background: '#213244', color: '#d8ecff', border: '1px solid #3a5f82', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>TP75</button>
+                          <button disabled={manualBusy || !p?.symbol} onClick={() => runManual('Close Position', `${p?.symbol || 'unknown'}:${p?.variantId || 'default'}`, () => manualClosePosition(p?.symbol, p?.variantId || null))} style={{ background: '#3b2430', color: '#ffe1e1', border: '1px solid #7a4a5f', borderRadius: 6, padding: '2px 6px', cursor: 'pointer' }}>Close</button>
                         </div>
                       </td>
                     </tr>
@@ -335,7 +359,7 @@ const PortfolioPage: React.FC = () => {
                         }}>{t?.status || '—'}</span>
                       </td>
                       <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{t?.reason || '—'}</td>
-                      <td>—</td>
+                      <td>{typeof t?.realizedAmount === 'number' ? fmt(t.realizedAmount, 6) : <span style={{ color: '#9cb1d3' }}>Not yet wired</span>}</td>
                     </tr>
                   );
                 })}
