@@ -15,6 +15,8 @@ export function mockExchangeAdapter(request: ExecutionRequest): ExecutionResult 
     price: request.price, // propagate from request, do not invent a price
     qty: request.qty,
     variantId: request.variantId, // propagate variantId through
+    stopLoss: request.stopLoss,
+    takeProfit: request.takeProfit,
     status: 'simulated',
     reason: 'Simulated execution success',
     adapter: 'mockExchangeAdapter',

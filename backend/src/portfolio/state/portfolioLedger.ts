@@ -159,6 +159,8 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
     pos.avgEntry = price;
     if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
     pos.markPrice = price;
+    pos.stopLoss = Number.isFinite(Number((exec as any)?.stopLoss)) ? Number((exec as any)?.stopLoss) : pos.stopLoss ?? null;
+    pos.takeProfit = Number.isFinite(Number((exec as any)?.takeProfit)) ? Number((exec as any)?.takeProfit) : pos.takeProfit ?? null;
   } else if ((pos.qty > 0 && signedQty < 0) || (pos.qty < 0 && signedQty > 0)) {
     const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
     const pnl = (price - pos.avgEntry) * closeQty * Math.sign(pos.qty);
@@ -171,12 +173,16 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
       pos.markPrice = null;
       pos.unrealizedPnL = 0;
       pos.side = 'flat';
+      pos.stopLoss = null;
+      pos.takeProfit = null;
     }
   } else {
     pos.avgEntry = (pos.avgEntry * Math.abs(pos.qty) + price * Math.abs(signedQty)) / (Math.abs(pos.qty + signedQty));
     pos.qty += signedQty;
     if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
     pos.markPrice = price;
+    if (Number.isFinite(Number((exec as any)?.stopLoss))) pos.stopLoss = Number((exec as any)?.stopLoss);
+    if (Number.isFinite(Number((exec as any)?.takeProfit))) pos.takeProfit = Number((exec as any)?.takeProfit);
   }
 
   pos.side = pos.qty > 0 ? 'long' : pos.qty < 0 ? 'short' : 'flat';
@@ -273,6 +279,8 @@ export function getPortfolio() {
         markPrice: p.markPrice,
         unrealizedPnL: p.unrealizedPnL,
         variantId: id,
+        stopLoss: p.stopLoss,
+        takeProfit: p.takeProfit,
         lastUpdated: p.lastUpdated,
       })),
     trades: book.trades.slice(-20).reverse(),

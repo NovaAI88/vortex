@@ -6,6 +6,8 @@ export interface RiskDecision {
   strategyId: string;
   price?: number; // Optional: propagated execution price
   variantId?: string; // Optional: propagated variant identifier
+  stopLoss?: number; // Optional protective stop propagated downstream
+  takeProfit?: number; // Optional protective take-profit propagated downstream
   approved: boolean;
   reason: string;
   producer: string;

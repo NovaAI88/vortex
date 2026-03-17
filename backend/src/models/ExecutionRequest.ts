@@ -10,6 +10,8 @@ export interface ExecutionRequest {
   price?: number; // Optional: execution price propagated from upstream
   qty?: number; // Computed position size
   variantId?: string; // Optional: propagated variant identifier
+  stopLoss?: number; // Protective stop level for newly opened/expanded exposure
+  takeProfit?: number; // Protective take-profit level for newly opened/expanded exposure
   producer: string;
   timestamp: string;
 }

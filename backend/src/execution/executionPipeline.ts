@@ -8,6 +8,7 @@ import { getEngineMode, EngineMode } from './mode/executionMode';
 import { getEnginePanelState } from '../state/engineState';
 import { logExecution } from './executionLog';
 import { recordExecution } from '../portfolio/state/portfolioLedger';
+import { isTradingEnabled } from '../operator/operatorState';
 
 const processedRiskDecisionIds = new Set<string>();
 
@@ -26,8 +27,40 @@ export function startExecutionPipeline(bus: EventBus): void {
       riskDecisionId: decision?.id,
     });
 
-    if (!decision.approved) return; // gate: only process approved
     if (processedRiskDecisionIds.has(decision.id)) return; // dedup gate
+
+    if (!decision.approved) return; // gate: only process approved
+
+    if (!isTradingEnabled()) {
+      const pausedResult = {
+        id: (Math.random() * 1e17).toString(36),
+        executionRequestId: 'blocked-operator-paused',
+        riskDecisionId: decision.id,
+        actionCandidateId: decision.actionCandidateId,
+        signalId: decision.signalId,
+        strategyId: decision.strategyId,
+        symbol: decision.symbol,
+        side: decision.side,
+        price: decision.price,
+        qty: 0,
+        variantId: decision.variantId,
+        status: 'rejected',
+        reason: 'operator paused: automated execution blocked',
+        adapter: 'executionPipeline',
+        timestamp: new Date().toISOString(),
+      } as any;
+      try { logExecution(pausedResult); } catch (e) {}
+      console.log('[TRACE execution.blocked]', {
+        reason: 'operator_paused',
+        symbol: decision?.symbol,
+        side: decision?.side,
+        variantId: decision?.variantId,
+        riskDecisionId: decision?.id,
+      });
+      publishExecutionResult(bus, pausedResult, 'execution', envelope.correlationId);
+      processedRiskDecisionIds.add(decision.id);
+      return;
+    }
     const request: ExecutionRequest = {
       id: (Math.random() * 1e17).toString(36),
       riskDecisionId: decision.id,
@@ -55,14 +88,16 @@ export function startExecutionPipeline(bus: EventBus): void {
     });
     // Position sizing for PAPER_TRADING (adaptive risk-based dynamic)
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
-      const BASE_RISK = Number(process.env.AETHER_RISK_PER_TRADE_BASE ?? process.env.AETHER_RISK_PER_TRADE ?? 0.0075);
-      const MIN_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MIN ?? 0.005);
-      const MAX_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MAX ?? 0.01);
+      const BASE_RISK = Number(process.env.AETHER_RISK_PER_TRADE_BASE ?? process.env.AETHER_RISK_PER_TRADE ?? 0.005);
+      const MIN_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MIN ?? 0.0025);
+      const MAX_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MAX ?? 0.005);
       const STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.2, Number(process.env.AETHER_STOP_DISTANCE_PCT ?? 0.005)));
+      const MIN_STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.02, Number(process.env.AETHER_MIN_STOP_DISTANCE_PCT ?? 0.002)));
       const MIN_TRADE_QTY = Math.max(0.000001, Number(process.env.AETHER_MIN_TRADE_QTY ?? 0.000001));
+      const MAX_FINAL_QTY = Math.max(MIN_TRADE_QTY, Number(process.env.AETHER_MAX_FINAL_QTY ?? 0.25));
       const MIN_TRADE_NOTIONAL = Math.max(0, Number(process.env.AETHER_MIN_TRADE_NOTIONAL ?? 10));
-      const MAX_SYMBOL_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_SYMBOL_EXPOSURE_PCT ?? 0.25)));
-      const MAX_PORTFOLIO_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_PORTFOLIO_EXPOSURE_PCT ?? 0.9)));
+      const MAX_SYMBOL_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_SYMBOL_EXPOSURE_PCT ?? 0.15)));
+      const MAX_PORTFOLIO_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_PORTFOLIO_EXPOSURE_PCT ?? 0.7)));
 
       const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -92,9 +127,9 @@ export function startExecutionPipeline(bus: EventBus): void {
       } catch (e) {}
 
       const adaptiveRisk = (() => {
-        const safeBase = clamp(Number.isFinite(BASE_RISK) ? BASE_RISK : 0.0075, 0.001, 0.05);
-        const safeMin = clamp(Number.isFinite(MIN_RISK) ? MIN_RISK : 0.005, 0.001, 0.05);
-        const safeMax = clamp(Number.isFinite(MAX_RISK) ? MAX_RISK : 0.01, 0.001, 0.05);
+        const safeBase = clamp(Number.isFinite(BASE_RISK) ? BASE_RISK : 0.005, 0.001, 0.005);
+        const safeMin = clamp(Number.isFinite(MIN_RISK) ? MIN_RISK : 0.0025, 0.001, 0.005);
+        const safeMax = clamp(Number.isFinite(MAX_RISK) ? MAX_RISK : 0.005, 0.001, 0.005);
         if (!Number.isFinite(equity) || equity <= 0) return clamp(safeBase, safeMin, safeMax);
 
         const pnlRatio = portfolioPnl / equity;
@@ -151,14 +186,21 @@ export function startExecutionPipeline(bus: EventBus): void {
         return;
       }
 
-      const stopLoss = Number((decision as any)?.stopLoss);
+      const decisionStopLoss = Number((decision as any)?.stopLoss);
       const volatilityProxy = Number((decision as any)?.volatility ?? (decision as any)?.atr ?? (decision as any)?.volatilityProxy);
+
+      const computedStopLoss = Number.isFinite(decisionStopLoss) && decisionStopLoss > 0
+        ? decisionStopLoss
+        : Number((request.side === 'buy' ? request.price * (1 - 0.005) : request.price * (1 + 0.005)).toFixed(8));
+      const computedTakeProfit = Number((request.side === 'buy' ? request.price * (1 + 0.01) : request.price * (1 - 0.01)).toFixed(8));
+      request.stopLoss = computedStopLoss;
+      request.takeProfit = computedTakeProfit;
 
       let stopDistanceSource: 'stopLoss' | 'volatility' | 'fallbackPct' = 'fallbackPct';
       let stopDistance = request.price * STOP_DISTANCE_PCT;
 
-      if (Number.isFinite(stopLoss) && stopLoss > 0) {
-        const d = Math.abs(request.price - stopLoss);
+      if (Number.isFinite(computedStopLoss) && computedStopLoss > 0) {
+        const d = Math.abs(request.price - computedStopLoss);
         if (Number.isFinite(d) && d > 0) {
           stopDistance = d;
           stopDistanceSource = 'stopLoss';
@@ -168,7 +210,30 @@ export function startExecutionPipeline(bus: EventBus): void {
         stopDistanceSource = 'volatility';
       }
 
-      stopDistance = Math.max(stopDistance, request.price * 0.0005);
+      const minStopDistance = request.price * MIN_STOP_DISTANCE_PCT;
+      if (!Number.isFinite(stopDistance) || stopDistance <= 0 || stopDistance < minStopDistance) {
+        const result = {
+          id: (Math.random() * 1e17).toString(36),
+          executionRequestId: request.id,
+          riskDecisionId: request.riskDecisionId,
+          actionCandidateId: request.actionCandidateId,
+          signalId: request.signalId,
+          strategyId: request.strategyId,
+          symbol: request.symbol,
+          side: request.side,
+          price: request.price,
+          qty: undefined,
+          variantId: request.variantId,
+          status: 'rejected',
+          reason: 'invalid stop distance: too small for safe sizing',
+          adapter: 'positionSizer',
+          timestamp: new Date().toISOString(),
+        };
+        try { logExecution(result); } catch (e) {}
+        publishExecutionResult(bus, result, 'execution', envelope.correlationId);
+        processedRiskDecisionIds.add(decision.id);
+        return;
+      }
 
       const riskCapital = Math.max(equity * adaptiveRisk, 0);
       const qtyByRisk = stopDistance > 0 ? (riskCapital / stopDistance) : 0;
@@ -184,7 +249,8 @@ export function startExecutionPipeline(bus: EventBus): void {
       const qtyByMaxPosition = adjustedMaxNotional / request.price;
 
       const rawQty = Math.min(qtyByRisk, qtyByMaxPosition);
-      const finalQty = Number.isFinite(rawQty) ? Number(rawQty.toFixed(6)) : 0;
+      const boundedQty = Number.isFinite(rawQty) ? Math.min(rawQty, MAX_FINAL_QTY) : 0;
+      const finalQty = Number.isFinite(boundedQty) ? Number(boundedQty.toFixed(6)) : 0;
       const tradeNotional = finalQty * request.price;
 
       let skipped = false;
@@ -210,8 +276,12 @@ export function startExecutionPipeline(bus: EventBus): void {
         adaptedRisk: adaptiveRisk,
         stopDistanceSource,
         stopDistance,
+        minStopDistance,
+        stopLoss: request.stopLoss,
+        takeProfit: request.takeProfit,
         qtyByRisk,
         qtyByMaxPosition,
+        maxFinalQty: MAX_FINAL_QTY,
         finalQty,
         skipped,
         skipReason,
