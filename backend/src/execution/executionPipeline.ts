@@ -53,18 +53,36 @@ export function startExecutionPipeline(bus: EventBus): void {
       riskDecisionId: request.riskDecisionId,
       executionRequestId: request.id,
     });
-    // Position sizing for PAPER_TRADING
-    const riskFraction = 0.01;
+    // Position sizing for PAPER_TRADING (adaptive risk-based dynamic)
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
-      let equity = 100000;
+      const BASE_RISK = Number(process.env.AETHER_RISK_PER_TRADE_BASE ?? process.env.AETHER_RISK_PER_TRADE ?? 0.0075);
+      const MIN_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MIN ?? 0.005);
+      const MAX_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MAX ?? 0.01);
+      const STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.2, Number(process.env.AETHER_STOP_DISTANCE_PCT ?? 0.005)));
+      const MIN_TRADE_QTY = Math.max(0.000001, Number(process.env.AETHER_MIN_TRADE_QTY ?? 0.000001));
+      const MIN_TRADE_NOTIONAL = Math.max(0, Number(process.env.AETHER_MIN_TRADE_NOTIONAL ?? 10));
+      const MAX_SYMBOL_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_SYMBOL_EXPOSURE_PCT ?? 0.25)));
+      const MAX_PORTFOLIO_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_PORTFOLIO_EXPOSURE_PCT ?? 0.9)));
+
+      const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+      let equity = 10000;
       let maxPositionSizePercent = 10;
+      let positions: any[] = [];
+      let portfolioPnl = 0;
+      let totalExposure = 0;
+
       try {
         const { getPortfolio } = require('../portfolio/state/portfolioLedger');
         const portfolio = getPortfolio();
         if (portfolio && typeof portfolio.equity === 'number' && isFinite(portfolio.equity) && portfolio.equity > 0) {
           equity = portfolio.equity;
         }
+        positions = Array.isArray(portfolio?.positions) ? portfolio.positions.filter(Boolean) : [];
+        portfolioPnl = Number.isFinite(Number(portfolio?.pnl)) ? Number(portfolio.pnl) : 0;
+        totalExposure = Number.isFinite(Number(portfolio?.positionsValue)) ? Number(portfolio.positionsValue) : 0;
       } catch (e) {}
+
       try {
         const { getStatus } = require('../risk/globalRiskController');
         const riskStatus = getStatus();
@@ -72,7 +90,20 @@ export function startExecutionPipeline(bus: EventBus): void {
           maxPositionSizePercent = riskStatus.maxPositionSizePercent;
         }
       } catch (e) {}
-      if (!request.price || request.price <= 0) {
+
+      const adaptiveRisk = (() => {
+        const safeBase = clamp(Number.isFinite(BASE_RISK) ? BASE_RISK : 0.0075, 0.001, 0.05);
+        const safeMin = clamp(Number.isFinite(MIN_RISK) ? MIN_RISK : 0.005, 0.001, 0.05);
+        const safeMax = clamp(Number.isFinite(MAX_RISK) ? MAX_RISK : 0.01, 0.001, 0.05);
+        if (!Number.isFinite(equity) || equity <= 0) return clamp(safeBase, safeMin, safeMax);
+
+        const pnlRatio = portfolioPnl / equity;
+        const performanceAdj = clamp(pnlRatio * 0.5, -0.5, 0.5); // bounded performance scaler
+        const risk = safeBase * (1 + performanceAdj);
+        return clamp(risk, Math.min(safeMin, safeMax), Math.max(safeMin, safeMax));
+      })();
+
+      if (!request.price || request.price <= 0 || !isFinite(request.price)) {
         const result = {
           id: (Math.random() * 1e17).toString(36),
           executionRequestId: request.id,
@@ -80,6 +111,8 @@ export function startExecutionPipeline(bus: EventBus): void {
           actionCandidateId: request.actionCandidateId,
           signalId: request.signalId,
           strategyId: request.strategyId,
+          symbol: request.symbol,
+          side: request.side,
           price: request.price,
           qty: undefined,
           variantId: request.variantId,
@@ -100,11 +133,6 @@ export function startExecutionPipeline(bus: EventBus): void {
             });
           }
         } catch (e) {}
-        try {
-          if (getEngineMode() === EngineMode.PAPER_TRADING) {
-            recordExecution(result);
-          }
-        } catch(e) {}
         console.log('[TRACE execution.result]', {
           symbol: result.symbol,
           side: result.side,
@@ -122,9 +150,107 @@ export function startExecutionPipeline(bus: EventBus): void {
         processedRiskDecisionIds.add(decision.id);
         return;
       }
-      const qtyByRiskFraction = (equity * riskFraction) / request.price;
-      const qtyByMaxPosition = (equity * (maxPositionSizePercent / 100)) / request.price;
-      request.qty = Math.min(qtyByRiskFraction, qtyByMaxPosition);
+
+      const stopLoss = Number((decision as any)?.stopLoss);
+      const volatilityProxy = Number((decision as any)?.volatility ?? (decision as any)?.atr ?? (decision as any)?.volatilityProxy);
+
+      let stopDistanceSource: 'stopLoss' | 'volatility' | 'fallbackPct' = 'fallbackPct';
+      let stopDistance = request.price * STOP_DISTANCE_PCT;
+
+      if (Number.isFinite(stopLoss) && stopLoss > 0) {
+        const d = Math.abs(request.price - stopLoss);
+        if (Number.isFinite(d) && d > 0) {
+          stopDistance = d;
+          stopDistanceSource = 'stopLoss';
+        }
+      } else if (Number.isFinite(volatilityProxy) && volatilityProxy > 0) {
+        stopDistance = volatilityProxy;
+        stopDistanceSource = 'volatility';
+      }
+
+      stopDistance = Math.max(stopDistance, request.price * 0.0005);
+
+      const riskCapital = Math.max(equity * adaptiveRisk, 0);
+      const qtyByRisk = stopDistance > 0 ? (riskCapital / stopDistance) : 0;
+
+      const baseMaxNotional = Math.max(0, equity * (maxPositionSizePercent / 100));
+      const symbolExposure = positions
+        .filter((p: any) => p?.symbol === request.symbol)
+        .reduce((sum: number, p: any) => sum + Math.abs((Number(p?.qty) || 0) * (Number(p?.markPrice ?? p?.avgEntry ?? 0))), 0);
+
+      const symbolCap = Math.max(0, equity * MAX_SYMBOL_EXPOSURE_PCT - symbolExposure);
+      const portfolioCap = Math.max(0, equity * MAX_PORTFOLIO_EXPOSURE_PCT - totalExposure);
+      const adjustedMaxNotional = Math.max(0, Math.min(baseMaxNotional, symbolCap, portfolioCap));
+      const qtyByMaxPosition = adjustedMaxNotional / request.price;
+
+      const rawQty = Math.min(qtyByRisk, qtyByMaxPosition);
+      const finalQty = Number.isFinite(rawQty) ? Number(rawQty.toFixed(6)) : 0;
+      const tradeNotional = finalQty * request.price;
+
+      let skipped = false;
+      let skipReason: string | null = null;
+
+      if (!Number.isFinite(finalQty) || finalQty <= 0) {
+        skipped = true;
+        skipReason = 'position size computed as non-positive';
+      } else if (finalQty < MIN_TRADE_QTY) {
+        skipped = true;
+        skipReason = 'position size below minimum tradable threshold';
+      } else if (tradeNotional < MIN_TRADE_NOTIONAL) {
+        skipped = true;
+        skipReason = 'position notional below minimum tradable threshold';
+      }
+
+      console.log('[TRACE execution.sizing]', {
+        symbol: request.symbol,
+        variantId: request.variantId,
+        side: request.side,
+        equity,
+        baseRisk: BASE_RISK,
+        adaptedRisk: adaptiveRisk,
+        stopDistanceSource,
+        stopDistance,
+        qtyByRisk,
+        qtyByMaxPosition,
+        finalQty,
+        skipped,
+        skipReason,
+      });
+
+      if (skipped) {
+        const result = {
+          id: (Math.random() * 1e17).toString(36),
+          executionRequestId: request.id,
+          riskDecisionId: request.riskDecisionId,
+          actionCandidateId: request.actionCandidateId,
+          signalId: request.signalId,
+          strategyId: request.strategyId,
+          symbol: request.symbol,
+          side: request.side,
+          price: request.price,
+          qty: finalQty,
+          variantId: request.variantId,
+          status: 'rejected',
+          reason: skipReason || 'position sizing rejected trade',
+          adapter: 'positionSizer',
+          timestamp: new Date().toISOString(),
+        };
+        try {
+          logExecution(result);
+          const { appendAlert } = require('../alerts/alertStore');
+          appendAlert({
+            timestamp: result.timestamp,
+            severity: 'warning',
+            source: 'execution',
+            message: result.reason,
+          });
+        } catch (e) {}
+        publishExecutionResult(bus, result, 'execution', envelope.correlationId);
+        processedRiskDecisionIds.add(decision.id);
+        return;
+      }
+
+      request.qty = finalQty;
     }
     // Mode gating logic
     const mode = getEngineMode();
