@@ -1,101 +1,87 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchDecisions, fetchSignals, fetchStrategyPerformance, fetchStrategyWeights, fetchStatus } from '../api/apiClient';
-import StrategyPerformanceTable from '../components/StrategyPerformanceTable';
-import StrategyWeightsPanel from '../components/StrategyWeightsPanel';
+import { fetchStrategyPerformance, fetchStrategyWeights, fetchStatus } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
-const POLL_INTERVAL = 5000;
+const COLORS = ['#60d9ff', '#9f8bff', '#5ff5c8', '#ffb36b', '#ff7f9d', '#77a7ff'];
 
 const StrategyPage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
   const [performance, setPerformance] = useState<any[]>([]);
   const [weights, setWeights] = useState<Record<string, number>>({});
-  const [signals, setSignals] = useState<any[]>([]);
-  const [decisions, setDecisions] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
-
     const load = async () => {
-      setError(null);
       try {
-        const [s, perfRes, weightsRes, signalRes, decisionRes] = await Promise.all([
+        const [s, perfRes, weightsRes] = await Promise.all([
           fetchStatus(),
           fetchStrategyPerformance().catch(() => []),
           fetchStrategyWeights().catch(() => ({})),
-          fetchSignals().catch(() => []),
-          fetchDecisions().catch(() => []),
         ]);
         if (!mounted) return;
         setStatus(s);
         setPerformance(Array.isArray(perfRes) ? perfRes.filter(Boolean) : []);
         setWeights(weightsRes && typeof weightsRes === 'object' ? weightsRes : {});
-        setSignals(Array.isArray(signalRes) ? signalRes.filter(Boolean) : []);
-        setDecisions(Array.isArray(decisionRes) ? decisionRes.filter(Boolean) : []);
+        setError(null);
       } catch (e: any) {
         if (!mounted) return;
-        setError(e?.message || 'Backend not connected');
+        setError(e?.message || 'Data unavailable');
       } finally {
         if (mounted) setLoading(false);
       }
     };
-
     load();
-    const tid = setInterval(load, POLL_INTERVAL);
-    return () => {
-      mounted = false;
-      clearInterval(tid);
-    };
+    const t = setInterval(load, 5000);
+    return () => { mounted = false; clearInterval(t); };
   }, []);
 
-  const activeStrategies = useMemo(() => {
-    const perfIds = performance.map((p) => p.strategyId).filter(Boolean);
-    const weightIds = Object.keys(weights);
-    return new Set([...perfIds, ...weightIds]).size;
-  }, [performance, weights]);
-
-  const strategyPnl = useMemo(
-    () => performance.reduce((sum, p) => sum + (typeof p.realizedPnL === 'number' ? p.realizedPnL : 0), 0),
-    [performance]
-  );
-
-  const capitalAllocation = useMemo(() => {
-    const sum = Object.values(weights).reduce<number>((acc, value) => acc + (typeof value === 'number' ? value : 0), 0);
-    return sum > 0 ? `${(sum * 100).toFixed(1)}%` : 'No data';
-  }, [weights]);
+  const perfChart = useMemo(() => performance.map((p: any) => ({ name: `${p?.strategyId || '—'}:${p?.variantId || '—'}`, pnl: Number(p?.realizedPnL || 0) })), [performance]);
+  const weightChart = useMemo(() => Object.entries(weights).map(([k, v]) => ({ name: k, value: Number(v || 0) })), [weights]);
 
   return (
     <div>
       <PageHeaderBar
-        title="Strategy Intelligence Terminal"
-        subtitle={loading ? 'Loading…' : 'Only live strategy endpoints and execution telemetry'}
+        title="Strategy Intelligence"
+        subtitle={loading ? 'Loading…' : 'Real strategy weights/performance endpoints only'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : 'LIVE STRATEGY'}
+        statusLabel={error ? 'DISCONNECTED' : 'LIVE'}
         activeSymbol="STRATEGY"
         timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Active Strategies" value={activeStrategies || 'No data'} />
-        <KpiCard label="Strategy PnL" value={performance.length ? strategyPnl.toFixed(2) : 'No data'} tone={strategyPnl >= 0 ? 'positive' : 'negative'} />
-        <KpiCard label="Capital Allocation" value={capitalAllocation} />
-        <KpiCard label="Signals" value={signals.length} />
-        <KpiCard label="Decisions" value={decisions.length} />
+        <KpiCard label="Strategy Rows" value={performance.length || 'Data unavailable'} />
+        <KpiCard label="Weight Keys" value={Object.keys(weights).length || 'Data unavailable'} />
       </KpiStrip>
 
-      {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>Backend not connected.</div> : null}
+      {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>{error}</div> : null}
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
-        <SectionCard title="Strategy Performance">
-          <StrategyPerformanceTable />
+        <SectionCard title="Variant Performance">
+          {perfChart.length ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={perfChart}><CartesianGrid stroke="#233" /><XAxis dataKey="name" /><YAxis /><Tooltip /><Bar dataKey="pnl" fill="#62d7ff" /></BarChart>
+            </ResponsiveContainer>
+          ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
         </SectionCard>
+
         <SectionCard title="Strategy Weights">
-          <StrategyWeightsPanel />
+          {weightChart.length ? (
+            <ResponsiveContainer width="100%" height={260}>
+              <PieChart>
+                <Pie data={weightChart} dataKey="value" nameKey="name" outerRadius={90}>
+                  {weightChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
         </SectionCard>
       </div>
     </div>
