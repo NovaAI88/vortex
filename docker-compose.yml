@@ -4,9 +4,14 @@ services:
     build: ./backend
     ports:
       - "3000:3000"
+    volumes:
+      - aether-backend-data:/app/data
 
   frontend:
     container_name: aether-frontend
     build: ./frontend
     ports:
       - "8080:80"
+
+volumes:
+  aether-backend-data:
