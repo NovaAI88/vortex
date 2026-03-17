@@ -60,12 +60,12 @@ const AiAnalysisPage: React.FC = () => {
 
   const approvedDecisions = decisions.filter((d) => d?.approved).length;
   const blockedRisks = risks.filter((r) => !r?.approved || r?.blockedBy).length;
-  const approvalRate = decisions.length ? (approvedDecisions / decisions.length) : 0;
+  const approvalRate = decisions.length ? (approvedDecisions / decisions.length) : null;
 
   const byVariant = useMemo(() => {
     const m: Record<string, number> = {};
     signals.forEach((s: any) => {
-      const k = s?.variantId || 'default';
+      const k = typeof s?.variantId === 'string' && s.variantId.trim() ? s.variantId : '__unwired_variant__';
       m[k] = (m[k] || 0) + 1;
     });
     return m;
@@ -78,17 +78,17 @@ const AiAnalysisPage: React.FC = () => {
         subtitle={loading ? 'Loading…' : 'Truthful model/risk/decision telemetry'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
         statusLabel={error ? 'DISCONNECTED' : (runtime?.runtimeState || 'LIVE')}
-        activeSymbol={latestSignal?.symbol || 'MULTI-ASSET'}
+        activeSymbol={latestSignal?.symbol || 'NO_LIVE_BACKEND_DATA'}
         timestamp={status?.timestamp}
       />
 
       <KpiStrip>
         <KpiCard label="Signal Count" value={signals.length} />
-        <KpiCard label="Avg Confidence" value={avgConfidence !== null ? `${(avgConfidence * 100).toFixed(1)}%` : 'No data'} tone={avgConfidence !== null ? (avgConfidence >= 0.7 ? 'positive' : 'negative') : 'neutral'} />
+        <KpiCard label="Avg Confidence" value={avgConfidence !== null ? `${(avgConfidence * 100).toFixed(1)}%` : 'No live backend data'} tone={avgConfidence !== null ? (avgConfidence >= 0.7 ? 'positive' : 'negative') : 'neutral'} />
         <KpiCard label="Decisions" value={decisions.length} />
-        <KpiCard label="Approved" value={approvedDecisions} tone="positive" />
-        <KpiCard label="Approval Rate" value={`${(approvalRate * 100).toFixed(1)}%`} />
-        <KpiCard label="Risk Blocks" value={blockedRisks} tone={blockedRisks > 0 ? 'negative' : 'neutral'} />
+        <KpiCard label="Approved" value={decisions.length ? approvedDecisions : 'No live backend data'} tone="positive" />
+        <KpiCard label="Approval Rate" value={approvalRate !== null ? `${(approvalRate * 100).toFixed(1)}%` : 'No live backend data'} />
+        <KpiCard label="Risk Blocks" value={risks.length ? blockedRisks : 'No live backend data'} tone={blockedRisks > 0 ? 'negative' : 'neutral'} />
       </KpiStrip>
 
       {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>Backend not connected.</div> : null}
@@ -99,18 +99,18 @@ const AiAnalysisPage: React.FC = () => {
             <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
               <div>symbol: {latestSignal.symbol || '—'}</div>
               <div>side: {String(latestSignal.signalType || '—').toUpperCase()}</div>
-              <div>variant: {latestSignal.variantId || 'default'}</div>
-              <div>confidence: {typeof latestSignal.confidence === 'number' ? (latestSignal.confidence * 100).toFixed(1) : '—'}%</div>
+              <div>variant: {typeof latestSignal.variantId === 'string' && latestSignal.variantId.trim() ? latestSignal.variantId : 'Not yet wired'}</div>
+              <div>confidence: {typeof latestSignal.confidence === 'number' ? `${(latestSignal.confidence * 100).toFixed(1)}%` : 'Not yet wired'}</div>
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No signal available.</div>}
         </SectionCard>
 
         <SectionCard title="Decision / Risk Summary">
           <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c7d6ef' }}>
-            <div>latest approved decision: {decisions.find((d: any) => d?.approved)?.id || 'none'}</div>
-            <div>latest blocked reason: {risks.find((r: any) => !r?.approved)?.blockedBy || 'none'}</div>
-            <div>latest risk blockedBy: {latestRisk?.blockedBy || '—'}</div>
-            <div>latest decision side: {latestDecision?.side || '—'}</div>
+            <div>latest approved decision: {decisions.find((d: any) => d?.approved)?.id || 'No live backend data'}</div>
+            <div>latest blocked reason: {risks.find((r: any) => !r?.approved)?.blockedBy || 'No live backend data'}</div>
+            <div>latest risk blockedBy: {latestRisk?.blockedBy || 'No live backend data'}</div>
+            <div>latest decision side: {latestDecision?.side || 'No live backend data'}</div>
           </div>
         </SectionCard>
       </div>
@@ -118,17 +118,17 @@ const AiAnalysisPage: React.FC = () => {
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
         <SectionCard title="Signal Breakdown by Variant">
           {Object.keys(byVariant).length ? Object.entries(byVariant).map(([k, v]) => (
-            <div key={k} style={{ fontSize: 12, color: '#c7d6ef' }}>{k}: {v}</div>
-          )) : <div style={{ color: '#9cb1d3' }}>No variant data yet.</div>}
+            <div key={k} style={{ fontSize: 12, color: '#c7d6ef' }}>{k === '__unwired_variant__' ? 'Not yet wired (variantId missing)' : k}: {v}</div>
+          )) : <div style={{ color: '#9cb1d3' }}>No live backend data.</div>}
         </SectionCard>
 
         <SectionCard title="Last Pipeline Event">
           {trace[0] ? (
             <div style={{ fontSize: 12, color: '#c7d6ef', lineHeight: 1.6 }}>
-              <div>signal: {trace[0].signalId}</div>
-              <div>strategy: {trace[0].strategyId} / {trace[0].variantId}</div>
-              <div>status: {trace[0].finalStatus}</div>
-              <div>reason: {trace[0]?.risk?.reason || trace[0]?.execution?.reason || '—'}</div>
+              <div>signal: {trace[0].signalId || 'No live backend data'}</div>
+              <div>strategy: {(trace[0].strategyId || 'Not yet wired')} / {(trace[0].variantId || 'Not yet wired')}</div>
+              <div>status: {trace[0].finalStatus || 'No live backend data'}</div>
+              <div>reason: {trace[0]?.risk?.reason || trace[0]?.execution?.reason || 'Not yet wired'}</div>
             </div>
           ) : <div style={{ color: '#9cb1d3' }}>No pipeline event yet.</div>}
         </SectionCard>
