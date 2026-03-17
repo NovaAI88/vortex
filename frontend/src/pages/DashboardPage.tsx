@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { fetchStatus, fetchPortfolio } from '../api/apiClient';
+import { fetchStatus, fetchPortfolio, fetchOperatorState, fetchRisks } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -13,15 +13,42 @@ const DashboardPage: React.FC = () => {
   const [portfolio, setPortfolio] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [operator, setOperator] = useState<any>(null);
+  const [riskEvents, setRiskEvents] = useState<any[]>([]);
+  const [history, setHistory] = useState<Array<{ ts: string; equity: number; exposure: number; openPositions: number; trades: number }>>([]);
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
       try {
-        const [s, p] = await Promise.all([fetchStatus(), fetchPortfolio()]);
+        const [s, p, op, risks] = await Promise.all([
+          fetchStatus(),
+          fetchPortfolio(),
+          fetchOperatorState().catch(() => null),
+          fetchRisks().catch(() => []),
+        ]);
         if (!mounted) return;
         setStatus(s);
-        setPortfolio(p && typeof p === 'object' ? p : null);
+        const safePortfolio = p && typeof p === 'object' ? p : null;
+        setPortfolio(safePortfolio);
+        setOperator(op && typeof op === 'object' ? op : null);
+        setRiskEvents(Array.isArray(risks) ? risks.filter(Boolean) : []);
+        if (safePortfolio) {
+          const openPositions = Array.isArray(safePortfolio?.positions) ? safePortfolio.positions.filter((x: any) => Number(x?.qty || 0) !== 0).length : 0;
+          const exposure = Array.isArray(safePortfolio?.positions)
+            ? safePortfolio.positions.reduce((sum: number, pos: any) => sum + Math.abs((Number(pos?.qty) || 0) * (Number(pos?.markPrice ?? pos?.avgEntry ?? 0))), 0)
+            : 0;
+          setHistory(prev => {
+            const next = [...prev, {
+              ts: new Date().toISOString(),
+              equity: Number(safePortfolio?.equity ?? safePortfolio?.totalValue ?? 0),
+              exposure,
+              openPositions,
+              trades: Array.isArray(safePortfolio?.trades) ? safePortfolio.trades.length : 0,
+            }];
+            return next.slice(-120);
+          });
+        }
         setError(null);
       } catch (e: any) {
         if (!mounted) return;
@@ -39,17 +66,12 @@ const DashboardPage: React.FC = () => {
   const positions = Array.isArray(portfolio?.positions) ? portfolio.positions.filter(Boolean) : [];
 
   const equityCurve = useMemo(() => {
-    let pnl = 0;
-    return trades.slice(0, 60).reverse().map((t: any, i: number) => {
-      pnl += Number(t?.reason?.includes('failed') ? 0 : 0);
-      const eq = Number(portfolio?.equity ?? portfolio?.totalValue ?? 0);
-      return { idx: i + 1, equity: eq };
-    });
-  }, [trades, portfolio]);
+    return history.map((h, i) => ({ idx: i + 1, time: new Date(h.ts).toLocaleTimeString(), equity: h.equity }));
+  }, [history]);
 
   const tradeFrequency = useMemo(() => {
     const buckets: Record<string, number> = {};
-    trades.slice(0, 120).forEach((t: any) => {
+    trades.slice(0, 160).forEach((t: any) => {
       const ts = t?.timestamp ? new Date(t.timestamp) : null;
       const key = ts ? `${ts.getHours().toString().padStart(2, '0')}:${Math.floor(ts.getMinutes() / 15) * 15}` : 'unknown';
       buckets[key] = (buckets[key] || 0) + 1;
@@ -58,12 +80,20 @@ const DashboardPage: React.FC = () => {
   }, [trades]);
 
   const exposureData = useMemo(() => {
-    return positions.slice(0, 12).map((p: any) => {
-      const qty = Number(p?.qty || 0);
-      const mark = Number(p?.markPrice ?? p?.avgEntry ?? 0);
-      return { symbol: p?.symbol || '—', exposure: Math.abs(qty * mark) };
-    });
-  }, [positions]);
+    return history.map((h, i) => ({ idx: i + 1, time: new Date(h.ts).toLocaleTimeString(), exposure: h.exposure, openPositions: h.openPositions }));
+  }, [history]);
+
+  const latestRiskBlocked = useMemo(() => {
+    const blocked = (riskEvents || []).find((r: any) => r?.status?.includes?.('blocked') || r?.approved === false);
+    return blocked || null;
+  }, [riskEvents]);
+
+  const runtimeStateLabel = useMemo(() => {
+    if (error) return 'DISCONNECTED';
+    if (operator?.tradingEnabled === false) return 'PAUSED';
+    if (latestRiskBlocked) return 'RISK-BLOCKED';
+    return 'LIVE';
+  }, [error, operator, latestRiskBlocked]);
 
   return (
     <div>
@@ -71,7 +101,7 @@ const DashboardPage: React.FC = () => {
         title="AETHER Dashboard"
         subtitle={loading ? 'Loading…' : 'Real backend account overview'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : String(status?.status || 'UNKNOWN').toUpperCase()}
+        statusLabel={runtimeStateLabel}
         activeSymbol="PORTFOLIO"
         timestamp={status?.timestamp}
       />
@@ -83,13 +113,25 @@ const DashboardPage: React.FC = () => {
         <KpiCard label="Open Positions" value={positions.length || 'Data unavailable'} />
       </KpiStrip>
 
+      <div className="ui-card" style={{ marginTop: 10, padding: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: runtimeStateLabel === 'LIVE' ? '#1c3d2c' : '#3b2430', color: '#dfffe9', border: '1px solid #355f49', fontSize: 12 }}>
+          {runtimeStateLabel}
+        </span>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#1c2638', color: '#dbe7ff', border: '1px solid #334b78', fontSize: 12 }}>
+          Trading: {operator?.tradingEnabled === false ? 'Paused' : 'Enabled'}
+        </span>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#2a223b', color: '#e8ddff', border: '1px solid #5d4b8a', fontSize: 12 }}>
+          Risk blocks: {Array.isArray(riskEvents) ? riskEvents.filter((r: any) => r?.status?.includes?.('blocked') || r?.approved === false).length : 0}
+        </span>
+      </div>
+
       {error ? <div className="ui-card" style={{ color: '#ffb8b8', padding: 14 }}>{error}</div> : null}
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
         <SectionCard title="Equity Curve">
           {equityCurve.length ? (
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={equityCurve}><CartesianGrid stroke="#233" /><XAxis dataKey="idx" /><YAxis /><Tooltip /><Line dataKey="equity" stroke="#6be3ff" dot={false} /></LineChart>
+              <LineChart data={equityCurve}><CartesianGrid stroke="#233" /><XAxis dataKey="time" /><YAxis /><Tooltip /><Line dataKey="equity" stroke="#6be3ff" dot={false} /></LineChart>
             </ResponsiveContainer>
           ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
         </SectionCard>
@@ -107,7 +149,7 @@ const DashboardPage: React.FC = () => {
         <SectionCard title="Risk Exposure">
           {exposureData.length ? (
             <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={exposureData}><CartesianGrid stroke="#233" /><XAxis dataKey="symbol" /><YAxis /><Tooltip /><Area dataKey="exposure" stroke="#ff9d9d" fill="#6f2d45" /></AreaChart>
+              <AreaChart data={exposureData}><CartesianGrid stroke="#233" /><XAxis dataKey="time" /><YAxis /><Tooltip /><Area dataKey="exposure" stroke="#ff9d9d" fill="#6f2d45" /></AreaChart>
             </ResponsiveContainer>
           ) : <div style={{ color: '#9cb1d3' }}>Data unavailable</div>}
         </SectionCard>

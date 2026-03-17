@@ -3,6 +3,7 @@ import {
   fetchPortfolio,
   fetchStatus,
   fetchOperatorState,
+  fetchRisks,
   startTrading,
   pauseTrading,
   manualClosePosition,
@@ -40,19 +41,22 @@ const PortfolioPage: React.FC = () => {
   const [manualError, setManualError] = useState<string | null>(null);
   const [manualResult, setManualResult] = useState<any>(null);
   const [manualLedger, setManualLedger] = useState<ManualLedgerItem[]>([]);
+  const [riskEvents, setRiskEvents] = useState<any[]>([]);
 
   const load = async (mounted = true) => {
     setError(null);
     try {
-      const [s, op, p] = await Promise.all([
+      const [s, op, p, risks] = await Promise.all([
         fetchStatus(),
         fetchOperatorState().catch(() => null),
         fetchPortfolio(),
+        fetchRisks().catch(() => []),
       ]);
       if (!mounted) return;
       setStatus(s);
       setOperator(op && typeof op === 'object' ? op : null);
       setPortfolio(p && typeof p === 'object' ? p : null);
+      setRiskEvents(Array.isArray(risks) ? risks.filter(Boolean) : []);
     } catch (e: any) {
       if (!mounted) return;
       setError(e?.message || 'Backend not connected');
@@ -133,6 +137,14 @@ const PortfolioPage: React.FC = () => {
   };
 
   const tradingEnabled = operator?.tradingEnabled;
+  const latestRiskBlock = (riskEvents || []).find((r: any) => r?.status?.includes?.('blocked') || r?.approved === false);
+  const runtimeState = error
+    ? 'DISCONNECTED'
+    : tradingEnabled === false
+      ? 'PAUSED'
+      : latestRiskBlock
+        ? 'RISK-BLOCKED'
+        : 'LIVE';
 
   return (
     <div>
@@ -140,7 +152,7 @@ const PortfolioPage: React.FC = () => {
         title="Portfolio Command Center"
         subtitle={loading ? 'Loading…' : 'Real backend portfolio + operator manual controls'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
-        statusLabel={error ? 'DISCONNECTED' : tradingEnabled === false ? 'PAUSED' : 'LIVE'}
+        statusLabel={runtimeState}
         activeSymbol="PORTFOLIO"
         timestamp={status?.timestamp}
       />
@@ -155,6 +167,18 @@ const PortfolioPage: React.FC = () => {
         <KpiCard label="Trade Count" value={trades.length} />
         <KpiCard label="Trading State" value={tradingEnabled === true ? 'LIVE' : tradingEnabled === false ? 'PAUSED' : 'No data'} tone={tradingEnabled === true ? 'positive' : tradingEnabled === false ? 'negative' : 'neutral'} />
       </KpiStrip>
+
+      <div className="ui-card" style={{ marginTop: 10, padding: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: runtimeState === 'LIVE' ? '#1c3d2c' : '#3b2430', color: '#dfffe9', border: '1px solid #355f49', fontSize: 12 }}>
+          {runtimeState}
+        </span>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#1c2638', color: '#dbe7ff', border: '1px solid #334b78', fontSize: 12 }}>
+          Trading: {tradingEnabled === false ? 'Paused' : 'Enabled'}
+        </span>
+        <span style={{ padding: '4px 8px', borderRadius: 999, background: '#2a223b', color: '#e8ddff', border: '1px solid #5d4b8a', fontSize: 12 }}>
+          Risk blocks (recent): {Array.isArray(riskEvents) ? riskEvents.filter((r: any) => r?.status?.includes?.('blocked') || r?.approved === false).length : 0}
+        </span>
+      </div>
 
       <div className="ui-main-grid" style={{ gridTemplateColumns: '1.35fr 1fr', marginTop: 10 }}>
         <SectionCard title="Unified Manual Controls">
@@ -230,8 +254,22 @@ const PortfolioPage: React.FC = () => {
                       <td>{fmt(p?.unrealizedPnL)}</td>
                       <td>—</td>
                       <td>{fmt(exposure)}</td>
-                      <td>{fmt(p?.stopLoss)}</td>
-                      <td>{fmt(p?.takeProfit)}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ color: '#ffb8b8' }}>{fmt(p?.stopLoss)}</span>
+                          <span style={{ fontSize: 11, color: '#b99393' }}>
+                            {Number.isFinite(Number(p?.stopLoss)) && mark > 0 ? `${(((Number(p.stopLoss) - mark) / mark) * 100).toFixed(2)}%` : '—'}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ color: '#b8ffd4' }}>{fmt(p?.takeProfit)}</span>
+                          <span style={{ fontSize: 11, color: '#9bc6ad' }}>
+                            {Number.isFinite(Number(p?.takeProfit)) && mark > 0 ? `${(((Number(p.takeProfit) - mark) / mark) * 100).toFixed(2)}%` : '—'}
+                          </span>
+                        </div>
+                      </td>
                       <td>{age}</td>
                       <td>
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -265,13 +303,27 @@ const PortfolioPage: React.FC = () => {
                     <tr key={i}>
                       <td>{t?.timestamp ? new Date(t.timestamp).toLocaleString() : '—'}</td>
                       <td>{t?.symbol ?? '—'}</td>
-                      <td>{String(t?.side || '—').toUpperCase()}</td>
+                      <td>
+                        <span style={{
+                          padding: '2px 6px', borderRadius: 999,
+                          background: String(t?.side).toLowerCase() === 'buy' ? '#1d3a29' : '#3a1f2a',
+                          border: String(t?.side).toLowerCase() === 'buy' ? '1px solid #2f7a54' : '1px solid #7a3f4f',
+                          color: '#e7f6ff', fontSize: 12
+                        }}>{String(t?.side || '—').toUpperCase()}</span>
+                      </td>
                       <td>{t?.variantId || 'default'}</td>
                       <td>{fmt(px)}</td>
                       <td>{fmt(qty, 6)}</td>
                       <td>{fmt(Math.abs(px * qty))}</td>
-                      <td>{t?.status || '—'}</td>
-                      <td>{t?.reason || '—'}</td>
+                      <td>
+                        <span style={{
+                          padding: '2px 6px', borderRadius: 999,
+                          background: t?.status === 'simulated' ? '#1c3d2c' : '#3b2430',
+                          border: t?.status === 'simulated' ? '1px solid #355f49' : '1px solid #7a4a5f',
+                          color: '#e7f6ff', fontSize: 12
+                        }}>{t?.status || '—'}</span>
+                      </td>
+                      <td style={{ maxWidth: 280, whiteSpace: 'normal' }}>{t?.reason || '—'}</td>
                       <td>—</td>
                     </tr>
                   );
