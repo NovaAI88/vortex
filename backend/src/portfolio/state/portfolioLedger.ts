@@ -150,6 +150,21 @@ function getOrCreateVariantBook(variantId?: string | null): LedgerBook {
   return variantBooks[key];
 }
 
+function deriveProtectiveLevels(exec: ExecutionResult | undefined, price: number, side: 'buy' | 'sell') {
+  const explicitStop = Number((exec as any)?.stopLoss);
+  const explicitTake = Number((exec as any)?.takeProfit);
+
+  const stopLoss = Number.isFinite(explicitStop) && explicitStop > 0
+    ? explicitStop
+    : Number((side === 'buy' ? price * (1 - 0.005) : price * (1 + 0.005)).toFixed(8));
+
+  const takeProfit = Number.isFinite(explicitTake) && explicitTake > 0
+    ? explicitTake
+    : Number((side === 'buy' ? price * (1 + 0.01) : price * (1 - 0.01)).toFixed(8));
+
+  return { stopLoss, takeProfit };
+}
+
 function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition: string, signedQty: number, price: number, variantId?: string | null, exec?: ExecutionResult) {
   if (!book.positions[positionKey]) book.positions[positionKey] = newPosition(symbolForPosition, variantId, price);
   const pos = book.positions[positionKey];
@@ -159,8 +174,9 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
     pos.avgEntry = price;
     if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
     pos.markPrice = price;
-    pos.stopLoss = Number.isFinite(Number((exec as any)?.stopLoss)) ? Number((exec as any)?.stopLoss) : pos.stopLoss ?? null;
-    pos.takeProfit = Number.isFinite(Number((exec as any)?.takeProfit)) ? Number((exec as any)?.takeProfit) : pos.takeProfit ?? null;
+    const protection = deriveProtectiveLevels(exec, price, signedQty >= 0 ? 'buy' : 'sell');
+    pos.stopLoss = protection.stopLoss;
+    pos.takeProfit = protection.takeProfit;
   } else if ((pos.qty > 0 && signedQty < 0) || (pos.qty < 0 && signedQty > 0)) {
     const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
     const pnl = (price - pos.avgEntry) * closeQty * Math.sign(pos.qty);
@@ -181,8 +197,12 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
     pos.qty += signedQty;
     if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
     pos.markPrice = price;
-    if (Number.isFinite(Number((exec as any)?.stopLoss))) pos.stopLoss = Number((exec as any)?.stopLoss);
-    if (Number.isFinite(Number((exec as any)?.takeProfit))) pos.takeProfit = Number((exec as any)?.takeProfit);
+    // On same-direction adds, ensure protective levels are present even if upstream omitted them.
+    if ((signedQty > 0 && pos.qty > 0) || (signedQty < 0 && pos.qty < 0)) {
+      const protection = deriveProtectiveLevels(exec, price, signedQty >= 0 ? 'buy' : 'sell');
+      pos.stopLoss = protection.stopLoss;
+      pos.takeProfit = protection.takeProfit;
+    }
   }
 
   pos.side = pos.qty > 0 ? 'long' : pos.qty < 0 ? 'short' : 'flat';
