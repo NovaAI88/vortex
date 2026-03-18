@@ -1,5 +1,5 @@
 // Minimal correct API BASE for local Docker setup
-const API_BASE = 'http://localhost:3000';
+const API_BASE = 'http://localhost:3001';
 
 export async function fetchStatus() {
   // Retain for compatibility; GET /api/status

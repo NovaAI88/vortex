@@ -87,7 +87,7 @@ export function checkLimits(candidate?: { side?: 'buy' | 'sell'; symbol?: string
   const isReducingTrade = (() => {
     if (!candidate || !candidate.side || !candidate.symbol || !Array.isArray((portfolio as any)?.positions)) return false;
     const variantId = candidate.variantId || null;
-    const pos = (portfolio as any).positions.find((x: any) => x.symbol === candidate.symbol && (variantId ? (x.variantId || null) === variantId : true));
+    const pos = (portfolio as any).positions.find((x: any) => x.symbol === candidate.symbol && (x.variantId || null) === variantId);
     if (!pos || typeof pos.qty !== 'number') return false;
     if (candidate.side === 'sell' && pos.qty > 0) return true;
     if (candidate.side === 'buy' && pos.qty < 0) return true;

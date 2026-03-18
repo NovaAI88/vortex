@@ -246,3 +246,23 @@ h1, h2, h3 {
     padding: 14px;
   }
 }
+
+/* Dashboard card */
+.ui-dashboard-card {
+  /* Inherits from .ui-card */
+}
+
+/* Dashboard card interactive hover */
+.ui-dashboard-card--interactive {
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.ui-dashboard-card--interactive:hover {
+  box-shadow: 0 4px 20px #0712244a;
+  border-color: #2f4a7a;
+  transform: translateY(-2px);
+}
+
+.ui-dashboard-card--interactive:active {
+  transform: translateY(0);
+}

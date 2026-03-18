@@ -116,14 +116,12 @@ export function startRiskPipeline(bus: EventBus): void {
         .filter((p: any) => p?.symbol === symbol)
         .filter((p: any) => (side === 'buy' ? Number(p?.qty) > 0 : Number(p?.qty) < 0))
         .reduce((sum: number, p: any) => {
-          const mark = Number(p?.markPrice ?? p?.avgEntry ?? candidate?.price ?? 0);
+          const mark = Number(p?.markPrice ?? p?.avgEntry ?? 0);
           const qtyAbs = Math.abs(Number(p?.qty) || 0);
           return sum + (Number.isFinite(mark) && mark > 0 ? qtyAbs * mark : 0);
         }, 0);
-      const newTradeNotional = Math.abs(Number(candidate?.price) || 0);
-      const capped = safeEquity > 0
-        ? (sameDirectionExposure + newTradeNotional) > (safeEquity * MAX_SYMBOL_DIRECTION_EXPOSURE_PCT)
-        : false;
+      const exposureCap = safeEquity * MAX_SYMBOL_DIRECTION_EXPOSURE_PCT;
+      const capped = safeEquity > 0 && sameDirectionExposure >= exposureCap;
 
       if (capped) {
         const blocked = {
