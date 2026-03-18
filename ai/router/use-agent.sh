@@ -2,15 +2,16 @@
 TASK="$*"
 
 RESULT=$(python3 ai/router/nova-router.py "$TASK")
-MODEL=$(python3 -c 'import sys, json; print(json.loads(sys.argv[1])["model"])' "$RESULT")
+AGENT=$(python3 -c 'import sys, json; print(json.loads(sys.argv[1])["agent"])' "$RESULT")
 REASON=$(python3 -c 'import sys, json; print(json.loads(sys.argv[1])["reason"])' "$RESULT")
 
 echo ""
 echo "=============================="
 echo "[Nova Router]"
 echo "Task   : $TASK"
-echo "Model  : $MODEL"
+echo "Agent  : $AGENT"
 echo "Reason : $REASON"
 echo "=============================="
 echo ""
-echo "Copy the task into Nova after confirming the selected model."
+echo "Next: send the task with:"
+echo "openclaw agent --agent $AGENT --message \"$TASK\""

@@ -13,3 +13,10 @@ yarn-error.log*
 *.swp
 *.tmp
 *.local
+
+# router runtime artifacts
+ai/router/*.jsonl
+ai/router/*last-run-output.txt
+ai/router/*.backup.jsonl
+ai/router/*.bak
+.cleanup-backups/
