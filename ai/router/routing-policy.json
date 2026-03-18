@@ -1,0 +1,37 @@
+{
+  "reasoning_model": "stepfun",
+  "preferred_coder": "codex",
+  "fallback_coder": "qwen",
+  "simple_code_prefers_qwen": true,
+  "critical_keywords": [
+    "portfolio",
+    "position",
+    "pnl",
+    "risk",
+    "execution",
+    "order",
+    "orders",
+    "exchange",
+    "position sizing",
+    "api contract",
+    "auth",
+    "secrets",
+    "production",
+    "live trading",
+    "state",
+    "restart"
+  ],
+  "simple_code_keywords": [
+    "helper",
+    "boilerplate",
+    "stub",
+    "scaffold",
+    "mock",
+    "test",
+    "frontend",
+    "react",
+    "component",
+    "ui",
+    "utility"
+  ]
+}
