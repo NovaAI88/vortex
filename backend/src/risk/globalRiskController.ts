@@ -4,7 +4,7 @@ import { isRiskOverrideActive } from '../operator/operatorState';
 
 const maxDrawdownPercent = 20;
 const dailyLossLimitPercent = 5;
-const maxPositionSizePercent = 10;
+const maxPositionSizePercent = 15;
 let peakEquity: number | undefined = undefined;
 let killSwitch = false;
 let lastDailyCheck = '';

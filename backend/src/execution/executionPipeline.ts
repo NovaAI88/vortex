@@ -102,7 +102,7 @@ export function startExecutionPipeline(bus: EventBus): void {
       const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
       let equity = 10000;
-      let maxPositionSizePercent = 10;
+      let maxPositionSizePercent = 15;
       let positions: any[] = [];
       let portfolioPnl = 0;
       let totalExposure = 0;
