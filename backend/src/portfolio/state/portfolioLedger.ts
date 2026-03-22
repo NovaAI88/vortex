@@ -223,6 +223,137 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
   }, 0);
 }
 
+// Update mark price for all positions with the given symbol.
+// Called by the position monitor on each price tick to keep positions current.
+export function updateMarkPrice(symbol: string, price: number): void {
+  if (!Number.isFinite(price) || price <= 0) return;
+  let changed = false;
+  for (const pos of Object.values(globalBook.positions)) {
+    if (pos.symbol === symbol && pos.qty !== 0) {
+      pos.markPrice = price;
+      pos.unrealizedPnL = pos.qty !== 0 ? (price - pos.avgEntry) * pos.qty : 0;
+      pos.lastUpdated = new Date().toISOString();
+      changed = true;
+    }
+  }
+  for (const book of Object.values(variantBooks)) {
+    for (const pos of Object.values(book.positions)) {
+      if (pos.symbol === symbol && pos.qty !== 0) {
+        pos.markPrice = price;
+        pos.unrealizedPnL = pos.qty !== 0 ? (price - pos.avgEntry) * pos.qty : 0;
+        pos.lastUpdated = new Date().toISOString();
+        changed = true;
+      }
+    }
+  }
+  if (changed) persistState();
+}
+
+// Returns open positions that have stop-loss or take-profit levels set.
+// The position monitor uses this to know what to watch.
+export type MonitoredPosition = {
+  symbol: string;
+  qty: number;
+  side: 'long' | 'short';
+  avgEntry: number;
+  markPrice: number;
+  stopLoss: number | null;
+  takeProfit: number | null;
+  variantId: string | null;
+  positionKey: string;
+};
+
+export function getOpenPositionsWithProtection(): MonitoredPosition[] {
+  const result: MonitoredPosition[] = [];
+  for (const [key, pos] of Object.entries(globalBook.positions)) {
+    if (pos.qty === 0) continue;
+    if (pos.markPrice === null || pos.markPrice <= 0) continue;
+    if (pos.side === 'flat') continue;
+    result.push({
+      symbol: pos.symbol,
+      qty: pos.qty,
+      side: pos.side as 'long' | 'short',
+      avgEntry: pos.avgEntry,
+      markPrice: pos.markPrice,
+      stopLoss: pos.stopLoss ?? null,
+      takeProfit: pos.takeProfit ?? null,
+      variantId: pos.variantId ?? null,
+      positionKey: key,
+    });
+  }
+  return result;
+}
+
+// Force-close a position by key (used by position monitor).
+// Returns realized PnL of the close, or null if no position found.
+export function forceClosePosition(positionKey: string, closePrice: number, reason: string): number | null {
+  const pos = globalBook.positions[positionKey];
+  if (!pos || pos.qty === 0) return null;
+
+  const signedQty = pos.qty;
+  const closeQty = Math.abs(signedQty);
+  const pnl = (closePrice - pos.avgEntry) * signedQty;
+
+  globalBook.realizedPnL += pnl;
+  globalBook.balance += closePrice * closeQty * (signedQty > 0 ? 1 : -1);
+
+  pos.qty = 0;
+  pos.side = 'flat';
+  pos.markPrice = closePrice;
+  pos.unrealizedPnL = 0;
+  pos.avgEntry = 0;
+  pos.stopLoss = null;
+  pos.takeProfit = null;
+  pos.lastUpdated = new Date().toISOString();
+
+  // Mirror close in variant book if present
+  const vKey = pos.variantId || 'default';
+  if (variantBooks[vKey]) {
+    const vBook = variantBooks[vKey];
+    for (const [k, vPos] of Object.entries(vBook.positions)) {
+      if (vPos.symbol === pos.symbol && vPos.qty !== 0) {
+        const vPnl = (closePrice - vPos.avgEntry) * vPos.qty;
+        vBook.realizedPnL += vPnl;
+        vBook.balance += closePrice * Math.abs(vPos.qty) * (vPos.qty > 0 ? 1 : -1);
+        vPos.qty = 0;
+        vPos.side = 'flat';
+        vPos.markPrice = closePrice;
+        vPos.unrealizedPnL = 0;
+        vPos.stopLoss = null;
+        vPos.takeProfit = null;
+        vPos.lastUpdated = new Date().toISOString();
+      }
+    }
+  }
+
+  globalBook.equity = globalBook.balance + Object.values(globalBook.positions).reduce((eq, p) => {
+    if (p.qty === 0 || p.markPrice === null) return eq;
+    return eq + (p.qty > 0 ? p.qty * closePrice : Math.abs(p.qty) * (p.avgEntry - closePrice));
+  }, 0);
+
+  // Append to book.trades so monitor-triggered closes appear in frontend trade history,
+  // consistent with normal closes via applyExecution(). PnL/balance accounting is unchanged.
+  const tradeEntry = {
+    id: (Math.random() * 1e17).toString(36),
+    symbol: pos.symbol,
+    side: signedQty > 0 ? 'sell' : 'buy', // closing direction is opposite of held position
+    qty: closeQty,
+    price: closePrice,
+    variantId: pos.variantId || null,
+    realizedPnL: pnl,
+    reason,
+    adapter: 'positionMonitor',
+    strategyId: 'position-monitor',
+    status: 'simulated',
+    timestamp: new Date().toISOString(),
+  };
+  globalBook.trades.push(tradeEntry);
+  while (globalBook.trades.length > 500) globalBook.trades.shift();
+
+  persistState();
+  return pnl;
+}
+
 export function appendManualAction(action: ManualActionLedgerItem) {
   manualActions.unshift(action);
   manualActions = manualActions.slice(0, 300);

@@ -41,6 +41,7 @@ import { startRiskPipeline } from './risk/riskPipeline';
 import { startExecutionPipeline } from './execution/executionPipeline';
 import { setEngineMode, EngineMode } from './execution/mode/executionMode';
 import { loadDedupStore } from './decision/state/dedupStore';
+import { startPositionMonitor } from './execution/positionMonitor';
 
 // Load persisted state before starting pipelines
 loadDedupStore();
@@ -55,6 +56,7 @@ startIntelligencePipeline(bus);
 startDecisionPipeline(bus);
 startRiskPipeline(bus);
 startExecutionPipeline(bus);
+startPositionMonitor(bus);
 console.log('[engine] Paper-trading runtime initialized (PAPER_TRADING mode enforced)');
 // --- END ENGINE BOOTSTRAP ---
 

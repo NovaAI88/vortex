@@ -19,3 +19,15 @@ export function addMarketPrice(event: MarketEvent) {
 export function getRecentMarketPrices(): PricePoint[] {
   return priceBuffer.slice();
 }
+
+export function getLatestPrice(sym: string): { price: number; timestamp: string } | null {
+  if (sym !== symbol) return null;
+  const last = priceBuffer[priceBuffer.length - 1];
+  return last ?? null;
+}
+
+export function getLatestPriceAge(sym: string): number {
+  const last = getLatestPrice(sym);
+  if (!last) return Infinity;
+  return Date.now() - new Date(last.timestamp).getTime();
+}
