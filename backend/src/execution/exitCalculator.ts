@@ -43,6 +43,17 @@ const ATR_MULTIPLIERS: Record<string, number> = {
   HIGH_RISK: 1.2,
 };
 
+// ─── Optional param overrides (optimizer only) ───────────────────────────────
+// Live pipeline never passes this argument. Defaults to module constants.
+
+export interface ExitLevelParams {
+  atrMultiplierTrend?:    number;  // default 1.5
+  atrMultiplierRange?:    number;  // default 1.0
+  atrMultiplierHighRisk?: number;  // default 1.2
+  tp1PartialPct?:         number;  // not used by this function directly; stored for simulator
+  fallbackStopPct?:       number;  // default 0.005
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function computeExitLevels(
@@ -50,12 +61,21 @@ export function computeExitLevels(
   side:     'buy' | 'sell',
   atr14:    number | null | undefined,
   regime:   string | null | undefined,
+  params?:  ExitLevelParams,
 ): ExitLevels {
   const isLong = side === 'buy';
 
+  // Resolve multipliers — params override defaults; live path never provides params
+  const resolvedMultipliers: Record<string, number> = {
+    TREND:     params?.atrMultiplierTrend    ?? ATR_MULTIPLIERS.TREND,
+    RANGE:     params?.atrMultiplierRange    ?? ATR_MULTIPLIERS.RANGE,
+    HIGH_RISK: params?.atrMultiplierHighRisk ?? ATR_MULTIPLIERS.HIGH_RISK,
+  };
+  const resolvedFallbackPct = params?.fallbackStopPct ?? FALLBACK_STOP_PCT;
+
   // ── ATR path ────────────────────────────────────────────────────────────
   if (atr14 !== null && atr14 !== undefined && Number.isFinite(atr14) && atr14 > 0) {
-    const multiplier = ATR_MULTIPLIERS[regime ?? ''] ?? 1.0;
+    const multiplier = resolvedMultipliers[regime ?? ''] ?? 1.0;
     const rawStop = atr14 * multiplier;
 
     // Clamp stop distance to floor/ceiling
@@ -87,7 +107,7 @@ export function computeExitLevels(
   }
 
   // ── Fallback path (no ATR available) ────────────────────────────────────
-  const R = price * FALLBACK_STOP_PCT;
+  const R = price * resolvedFallbackPct;
 
   const stopLoss = isLong
     ? Number((price - R).toFixed(2))

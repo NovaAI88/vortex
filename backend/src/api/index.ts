@@ -57,4 +57,10 @@ app.use('/api', systemRouter);
 import aiAnalysisRouter from './aiAnalysis';
 app.use('/api', aiAnalysisRouter);
 
+import optimizeRouter from './optimize';
+app.use('/api/optimize', optimizeRouter);  // Phase 6 — POST /run, GET /status, GET /results
+
+import validateRouter from './validate';
+app.use('/api/validate', validateRouter);  // Phase 6 — GET /report
+
 export default app;

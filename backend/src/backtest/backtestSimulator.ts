@@ -48,6 +48,10 @@ import { generateRangeSignal }   from '../intelligence/strategies/rangeStrategy'
 import { generateHighRiskSignal } from '../intelligence/strategies/highRiskStrategy';
 import { computeExitLevels }     from '../execution/exitCalculator';
 import { BacktestConfig, BacktestTrade, ExitReason } from './backtestTypes';
+import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
+import { TrendSignalParams } from '../intelligence/strategies/trendStrategy';
+import { RangeSignalParams }  from '../intelligence/strategies/rangeStrategy';
+import { ExitLevelParams }    from '../execution/exitCalculator';
 
 // ─── Internal position state ───────────────────────────────────────────────
 
@@ -86,6 +90,7 @@ export interface SimulatorResult {
 export function runSimulation(
   states:  ProcessedMarketState[],
   config:  BacktestConfig,
+  params?: ParamSet,
 ): SimulatorResult {
   const trades:      BacktestTrade[] = [];
   const equityCurve: number[]        = [];
@@ -93,15 +98,38 @@ export function runSimulation(
   let equity       = config.initialCapital;
   let position: OpenPosition | null = null;
 
-  // Pre-cache the FeatureSnapshot equivalent for each state
-  // (analyzeMarket needs a FeatureSnapshot — we construct it inline from state fields)
+  // Resolve param overrides (optimizer path only; live path uses DEFAULT_PARAMS)
+  const p = params ?? DEFAULT_PARAMS;
+
+  const trendParams: TrendSignalParams = {
+    adxMin:      p.trend.adxMin,
+    pullbackMin: p.trend.pullbackMin,
+    pullbackMax: p.trend.pullbackMax,
+    rsiLongMax:  p.trend.rsiLongMax,
+    rsiShortMin: p.trend.rsiShortMin,
+  };
+
+  const rangeParams: RangeSignalParams = {
+    rsiOversold:    p.range.rsiOversold,
+    rsiOverbought:  p.range.rsiOverbought,
+    breakoutMargin: p.range.breakoutMargin,
+  };
+
+  const exitParams: ExitLevelParams = {
+    atrMultiplierTrend:    p.exit.atrMultiplierTrend,
+    atrMultiplierRange:    p.exit.atrMultiplierRange,
+    atrMultiplierHighRisk: p.exit.atrMultiplierHighRisk,
+    fallbackStopPct:       p.exit.fallbackStopPct,
+  };
+
+  const minConfidence = p.confidence.minConfidence;
 
   for (let i = 0; i < states.length; i++) {
     const state = states[i];
 
     // ── Step 1: check open position against this candle ──────────────────
     if (position !== null) {
-      const result = checkExits(position, state, i, equity);
+      const result = checkExits(position, state, i, equity, p.exit.tp1PartialPct);
 
       if (result !== null) {
         // Trade fully or partially closed
@@ -111,19 +139,21 @@ export function runSimulation(
       }
     }
 
-    // ── Step 2: if no open position, try to generate a signal ────────────
+    // ── Step 2: if no open position, try to generate a signal ─────────────
     if (position === null && state.indicatorsWarm) {
       const snap = stateToFeatureSnapshot(state);
       const analysis = analyzeMarket(snap, state.price, state.newsRiskFlag ?? false);
 
       if (analysis.regime === 'HIGH_RISK') {
         // No trade
+      } else if (analysis.confidence < minConfidence) {
+        // Filtered by confidence threshold
       } else {
         let signal = null;
         if (analysis.regime === 'TREND') {
-          signal = generateTrendSignal(state, analysis);
+          signal = generateTrendSignal(state, analysis, trendParams);
         } else if (analysis.regime === 'RANGE') {
-          signal = generateRangeSignal(state, analysis);
+          signal = generateRangeSignal(state, analysis, rangeParams);
         } else {
           signal = generateHighRiskSignal(state, analysis);
         }
@@ -133,7 +163,7 @@ export function runSimulation(
 
           // Use exitMode from config — if 'fixed', pass null ATR to force fallback
           const atr14ForExit = config.exitMode === 'fixed' ? null : state.atr14;
-          const exits = computeExitLevels(state.price, side, atr14ForExit, analysis.regime);
+          const exits = computeExitLevels(state.price, side, atr14ForExit, analysis.regime, exitParams);
 
           const positionSize = equity * config.positionSizePct;
           const qty          = positionSize / state.price;
@@ -203,10 +233,11 @@ interface ExitResult {
 }
 
 function checkExits(
-  pos:    OpenPosition,
-  state:  ProcessedMarketState,
-  index:  number,
-  equity: number,
+  pos:           OpenPosition,
+  state:         ProcessedMarketState,
+  index:         number,
+  equity:        number,
+  tp1PartialPct: number = 0.5,
 ): ExitResult | null {
   const high = state.candleHigh ?? state.price;
   const low  = state.candleLow  ?? state.price;
@@ -234,9 +265,9 @@ function checkExits(
       : low  <= pos.tp1;
 
     if (tp1Breached) {
-      // Partial close: 50% of position
-      const partialQty  = pos.qty * 0.5;
-      const partialSize = pos.positionSize * 0.5;
+      // Partial close: tp1PartialPct of position
+      const partialQty  = pos.qty * tp1PartialPct;
+      const partialSize = pos.positionSize * tp1PartialPct;
       const tp1ExitPrice = pos.tp1;
 
       const tp1PnL = isLong
@@ -246,8 +277,8 @@ function checkExits(
       // Update position: halve size, mark tp1 as hit, activate breakeven trail
       pos.tp1Hit        = true;
       pos.tp1PnL        = tp1PnL;
-      pos.qty           = partialQty;
-      pos.positionSize  = partialSize;
+      pos.qty           = pos.qty - partialQty;       // remainder
+      pos.positionSize  = pos.positionSize - partialSize;
       pos.trailingStop  = pos.entryPrice;  // move stop to breakeven
       pos.trailingActive = false;          // trailing activates on TP2 reach
     }
@@ -343,13 +374,13 @@ function computeTradePnL(
 
   const total = pos.tp1PnL + remainderPnL;
 
-  // PnL as % of original position size (before partial close)
-  const originalSize = pos.tp1Hit ? pos.positionSize * 2 : pos.positionSize;
-  const pnlPct = originalSize > 0 ? (total / originalSize) * 100 : 0;
+  // PnL as % of full original position size (before any partial close)
+  // pos.positionSize at this point is the REMAINING size after tp1 partial close
+  // buildTrade will expose the original full size via the trade record
+  const pnlPct = pos.positionSize > 0 ? (total / pos.positionSize) * 100 : 0;
 
-  // R-multiples: total PnL divided by original R (stop distance × original qty)
-  const originalQty = pos.tp1Hit ? pos.qty * 2 : pos.qty;
-  const rUSD        = pos.rMultiple * originalQty;
+  // R-multiples: total PnL divided by original R (stop distance × remaining qty)
+  const rUSD = pos.rMultiple * pos.qty;
   const realizedR   = rUSD > 0 ? total / rUSD : 0;
 
   return {
@@ -384,8 +415,8 @@ function buildTrade(
     entryTime:    pos.entryTime,
     entryPrice:   pos.entryPrice,
     side:         pos.side,
-    positionSize: pos.tp1Hit ? pos.positionSize * 2 : pos.positionSize,
-    qty:          pos.tp1Hit ? pos.qty * 2 : pos.qty,
+    positionSize: pos.positionSize,
+    qty:          pos.qty,
 
     stopLoss:     pos.stopLoss,
     tp1:          pos.tp1,

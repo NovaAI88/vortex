@@ -22,18 +22,28 @@ import { ProcessedMarketState } from '../../models/ProcessedMarketState';
 import { TradeSignal } from '../../models/TradeSignal';
 import { AIAnalysis } from '../aiAnalysisEngine';
 
-// ─── Thresholds ─────────────────────────────────────────────────────────────
+// ─── Thresholds (live defaults) ──────────────────────────────────────────────
 
 const ADX_MAX           = 25;    // regime gate — redundant safety check
 const RSI_OVERSOLD      = 35;    // buy zone
 const RSI_OVERBOUGHT    = 65;    // sell zone
 const BREAKOUT_MARGIN   = 0.015; // 1.5% — beyond this = breakout, reject
 
+// ─── Optional param overrides (optimizer only) ───────────────────────────────
+// Live pipeline never passes this argument. Defaults to module constants.
+
+export interface RangeSignalParams {
+  rsiOversold?:    number;
+  rsiOverbought?:  number;
+  breakoutMargin?: number;
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function generateRangeSignal(
-  state: ProcessedMarketState,
+  state:    ProcessedMarketState,
   analysis: AIAnalysis,
+  params?:  RangeSignalParams,
 ): TradeSignal | null {
   const price         = state.price;
   const adx14         = state.adx14  ?? null;
@@ -41,6 +51,11 @@ export function generateRangeSignal(
   const ema20         = state.ema20  ?? null;
   const ema50         = state.ema50  ?? null;
   const newsRiskFlag  = state.newsRiskFlag ?? false;
+
+  // Resolve thresholds — params override defaults; live path never provides params
+  const rsiOversold    = params?.rsiOversold    ?? RSI_OVERSOLD;
+  const rsiOverbought  = params?.rsiOverbought  ?? RSI_OVERBOUGHT;
+  const breakoutMargin = params?.breakoutMargin ?? BREAKOUT_MARGIN;
 
   // ── Guard: indicators must be warm ──────────────────────────────────────
   if (!state.indicatorsWarm) return null;
@@ -60,14 +75,14 @@ export function generateRangeSignal(
 
   // ── Guard: breakout rejection — price must stay near EMA cluster ─────────
   const distFromEma = Math.abs(price - refEma) / price;
-  if (distFromEma > BREAKOUT_MARGIN) return null;
+  if (distFromEma > breakoutMargin) return null;
 
   // ── RSI extreme entry ────────────────────────────────────────────────────
   let signalType: string | null = null;
 
-  if (rsi14 <= RSI_OVERSOLD) {
+  if (rsi14 <= rsiOversold) {
     signalType = 'buy';
-  } else if (rsi14 >= RSI_OVERBOUGHT) {
+  } else if (rsi14 >= rsiOverbought) {
     signalType = 'sell';
   }
 
