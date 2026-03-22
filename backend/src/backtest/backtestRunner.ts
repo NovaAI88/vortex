@@ -18,11 +18,19 @@ import { fetchHistoricalCandles } from './historicalDataFetcher';
 import { buildReplayStates }      from './historicalFeatureBuilder';
 import { runSimulation }          from './backtestSimulator';
 import { computeBacktestMetrics } from './backtestMetrics';
+import { analyzeEntryQuality }    from './entryQualityAnalyzer';
 import { BacktestConfig, BacktestState, BacktestResult, DEFAULT_CONFIG, BacktestTrade } from './backtestTypes';
 
 // ─── In-memory state ───────────────────────────────────────────────────────
 
+import { ProcessedMarketState } from '../models/ProcessedMarketState';
+
 let state: BacktestState = { status: 'idle' };
+let lastReplayStates: ProcessedMarketState[] = [];
+
+export function getLastReplayStates(): ProcessedMarketState[] {
+  return lastReplayStates;
+}
 
 export function getBacktestState(): BacktestState {
   return state;
@@ -66,9 +74,9 @@ async function executeBacktest(runId: string, config: BacktestConfig): Promise<v
       limit:    config.limit,
     });
 
-    // ── Step 2: Build replay states ──────────────────────────────────────
+    // ── Step 2: Build replay states (with Phase 7A diagnostic extensions) ─
     state = { status: 'running', progress: 20 };
-    const replayStates = buildReplayStates(candles);
+    const { states: replayStates, extensions } = buildReplayStates(candles, true);
 
     // ── Step 3: Simulate ─────────────────────────────────────────────────
     state = { status: 'running', progress: 40 };
@@ -78,19 +86,23 @@ async function executeBacktest(runId: string, config: BacktestConfig): Promise<v
 
     if (config.exitMode === 'both') {
       // Run ATR mode (primary for overall metrics)
-      const atrResult = runSimulation(replayStates, { ...config, exitMode: 'atr' });
+      const atrResult = runSimulation(replayStates, { ...config, exitMode: 'atr' }, undefined, extensions);
 
       // Run fixed mode
-      const fixedResult = runSimulation(replayStates, { ...config, exitMode: 'fixed' });
+      const fixedResult = runSimulation(replayStates, { ...config, exitMode: 'fixed' }, undefined, extensions);
 
       // Merge trade lists — tag trades from fixed run (exitSource already set by simulator)
       allTrades   = [...atrResult.trades, ...fixedResult.trades];
       equityCurve = atrResult.equityCurve; // primary curve = ATR run
     } else {
-      const simResult = runSimulation(replayStates, config);
+      const simResult = runSimulation(replayStates, config, undefined, extensions);
       allTrades   = simResult.trades;
       equityCurve = simResult.equityCurve;
     }
+
+    // ── Phase 7A: store replay states + run entry quality analysis ────────
+    lastReplayStates = replayStates;
+    analyzeEntryQuality(allTrades); // mutates quickStop field on each trade
 
     // ── Step 4: Metrics ──────────────────────────────────────────────────
     state = { status: 'running', progress: 85 };

@@ -52,6 +52,7 @@ import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
 import { TrendSignalParams } from '../intelligence/strategies/trendStrategy';
 import { RangeSignalParams }  from '../intelligence/strategies/rangeStrategy';
 import { ExitLevelParams }    from '../execution/exitCalculator';
+import { ReplayExtensionMap } from './historicalFeatureBuilder';
 
 // ─── Internal position state ───────────────────────────────────────────────
 
@@ -78,6 +79,13 @@ interface OpenPosition {
   regime:          string;
   strategyId:      string;
   variantId:       string;
+
+  // Phase 7A: entry-quality snapshot (captured at entry, carried to buildTrade)
+  regimeAge:               number | null;
+  regimeConfidenceAtEntry: number | null;
+  ema20SlopeAtEntry:       number | null;
+  atrNormDistAtEntry:      number | null;
+  rangeLocationAtEntry:    number | null;
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
@@ -88,9 +96,10 @@ export interface SimulatorResult {
 }
 
 export function runSimulation(
-  states:  ProcessedMarketState[],
-  config:  BacktestConfig,
-  params?: ParamSet,
+  states:      ProcessedMarketState[],
+  config:      BacktestConfig,
+  params?:     ParamSet,
+  extensions?: ReplayExtensionMap,  // Phase 7A: optional diagnostic extensions
 ): SimulatorResult {
   const trades:      BacktestTrade[] = [];
   const equityCurve: number[]        = [];
@@ -100,6 +109,10 @@ export function runSimulation(
 
   // Resolve param overrides (optimizer path only; live path uses DEFAULT_PARAMS)
   const p = params ?? DEFAULT_PARAMS;
+
+  // Phase 7A: regime tracking
+  let currentRegime:      string | null = null;
+  let regimeStartIndex:   number        = 0;
 
   const trendParams: TrendSignalParams = {
     adxMin:      p.trend.adxMin,
@@ -144,6 +157,13 @@ export function runSimulation(
       const snap = stateToFeatureSnapshot(state);
       const analysis = analyzeMarket(snap, state.price, state.newsRiskFlag ?? false);
 
+      // Phase 7A: track regime age (candles elapsed in current regime)
+      if (analysis.regime !== currentRegime) {
+        currentRegime    = analysis.regime;
+        regimeStartIndex = i;
+      }
+      const regimeAge = i - regimeStartIndex;
+
       if (analysis.regime === 'HIGH_RISK') {
         // No trade
       } else if (analysis.confidence < minConfidence) {
@@ -168,6 +188,29 @@ export function runSimulation(
           const positionSize = equity * config.positionSizePct;
           const qty          = positionSize / state.price;
 
+          // ── Phase 7A: capture entry-quality fields ─────────────────────
+          const ext = extensions?.get(i) ?? null;
+
+          // ATR-normalized distance from EMA20 at entry
+          const distFromEma20 = state.ema20 !== null
+            ? Math.abs(state.price - state.ema20) / state.price
+            : null;
+          const atrNormDistAtEntry = (distFromEma20 !== null && state.atr14 !== null && state.atr14 > 0)
+            ? Number((distFromEma20 / (state.atr14 / state.price)).toFixed(4))
+            : null;
+
+          // Range location: (price - recentLow) / (recentHigh - recentLow)
+          // Only meaningful for RANGE trades; null for TREND
+          let rangeLocationAtEntry: number | null = null;
+          if (analysis.regime === 'RANGE' && ext !== null) {
+            const { recentHigh20, recentLow20 } = ext;
+            if (recentHigh20 !== null && recentLow20 !== null && recentHigh20 > recentLow20) {
+              rangeLocationAtEntry = Number(
+                ((state.price - recentLow20) / (recentHigh20 - recentLow20)).toFixed(4)
+              );
+            }
+          }
+
           position = {
             entryIndex:     i,
             entryTime:      state.timestamp,
@@ -191,6 +234,13 @@ export function runSimulation(
             regime:         analysis.regime,
             strategyId:     signal.strategyId,
             variantId:      signal.variantId ?? '',
+
+            // Phase 7A entry-quality fields
+            regimeAge,
+            regimeConfidenceAtEntry: analysis.regimeConfidence,
+            ema20SlopeAtEntry:       ext?.ema20Slope ?? null,
+            atrNormDistAtEntry,
+            rangeLocationAtEntry,
           };
         }
       }
@@ -441,6 +491,14 @@ function buildTrade(
     tp1Hit:       pos.tp1Hit,
     tp1PnL:       pnl.tp1PnL,
     remainderPnL: pnl.remainderPnL,
+
+    // Phase 7A: entry-quality fields
+    regimeAge:               pos.regimeAge,
+    regimeConfidenceAtEntry: pos.regimeConfidenceAtEntry,
+    ema20SlopeAtEntry:       pos.ema20SlopeAtEntry,
+    atrNormDistAtEntry:      pos.atrNormDistAtEntry,
+    rangeLocationAtEntry:    pos.rangeLocationAtEntry,
+    quickStop:               null, // filled by entryQualityAnalyzer post-simulation
   };
 }
 

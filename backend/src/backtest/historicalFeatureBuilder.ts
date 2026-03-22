@@ -33,6 +33,19 @@ import { computeATR } from '../processing/indicators/atr';
 import { computeRSI } from '../processing/indicators/rsi';
 import { computeADX } from '../processing/indicators/adx';
 
+// ── Phase 7A diagnostic extensions ──────────────────────────────────────────
+// These fields are attached to each replay state for entry-quality analysis.
+// They are NEVER used by live strategy logic — only by diagnostic code paths.
+
+export interface ReplayStateExtensions {
+  ema20Slope:   number | null;  // EMA20[i] − EMA20[i−3], raw price units (positive = rising)
+  recentHigh20: number | null;  // highest candle high over last 20 closed candles (inclusive)
+  recentLow20:  number | null;  // lowest candle low  over last 20 closed candles (inclusive)
+}
+
+// Map from candle index → diagnostic extension. Populated by buildReplayStates().
+export type ReplayExtensionMap = Map<number, ReplayStateExtensions>;
+
 // Minimum candles before primary indicators (EMA20, ATR14, RSI14) are valid.
 // Matches the live featurePipeline's WARM_THRESHOLD = 50.
 const WARM_THRESHOLD    = 50;
@@ -40,12 +53,28 @@ const VOLATILITY_CLAMP  = 0.05;  // ATR/price clamped at 5% = max volatility = 1
 
 /**
  * Build a full replay state array from raw OHLCV candles.
+ * Also returns a ReplayExtensionMap containing diagnostic fields (EMA20 slope,
+ * recent 20-candle high/low) keyed by candle index.
  *
  * @param candles  Candles in chronological order (oldest first).
- * @returns        One ProcessedMarketState per candle, leak-free.
+ * @returns        { states, extensions }
  */
-export function buildReplayStates(candles: OHLCVCandle[]): ProcessedMarketState[] {
-  const states: ProcessedMarketState[] = [];
+export function buildReplayStates(candles: OHLCVCandle[]): ProcessedMarketState[];
+export function buildReplayStates(
+  candles:    OHLCVCandle[],
+  withExtensions: true,
+): { states: ProcessedMarketState[]; extensions: ReplayExtensionMap };
+export function buildReplayStates(
+  candles:         OHLCVCandle[],
+  withExtensions?: boolean,
+): ProcessedMarketState[] | { states: ProcessedMarketState[]; extensions: ReplayExtensionMap } {
+  const states:     ProcessedMarketState[]           = [];
+  const extensions: ReplayExtensionMap               = new Map();
+
+  // Pre-compute EMA20 at each index for slope calculation.
+  // We do a single pass here to avoid O(n²) EMA recomputation for slope.
+  // EMA20 is already full-recomputed per state; store the sequence cheaply.
+  const ema20Series: (number | null)[] = [];
 
   for (let i = 0; i < candles.length; i++) {
     // Slice available candles: index 0 through i (inclusive)
@@ -114,7 +143,33 @@ export function buildReplayStates(candles: OHLCVCandle[]): ProcessedMarketState[
     };
 
     states.push(state);
+    ema20Series.push(ema20);
+
+    // ── Phase 7A: diagnostic extensions ────────────────────────────────────
+    if (withExtensions) {
+      // EMA20 slope: EMA20[i] − EMA20[i−3] (null if not enough history)
+      const slopeLookback = 3;
+      const prevEma20 = i >= slopeLookback ? ema20Series[i - slopeLookback] : null;
+      const ema20Slope = (ema20 !== null && prevEma20 !== null)
+        ? Number((ema20 - prevEma20).toFixed(4))
+        : null;
+
+      // Recent 20-candle high/low: uses candles[max(0, i-19)..i] (inclusive, leak-free)
+      const windowStart  = Math.max(0, i - 19);
+      const windowCandles = candles.slice(windowStart, i + 1);
+      const recentHigh20 = windowCandles.length > 0
+        ? Math.max(...windowCandles.map(c => c.high))
+        : null;
+      const recentLow20 = windowCandles.length > 0
+        ? Math.min(...windowCandles.map(c => c.low))
+        : null;
+
+      extensions.set(i, { ema20Slope, recentHigh20, recentLow20 });
+    }
   }
 
+  if (withExtensions) {
+    return { states, extensions };
+  }
   return states;
 }

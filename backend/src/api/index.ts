@@ -63,4 +63,7 @@ app.use('/api/optimize', optimizeRouter);  // Phase 6 — POST /run, GET /status
 import validateRouter from './validate';
 app.use('/api/validate', validateRouter);  // Phase 6 — GET /report
 
+import diagnosisRouter from './diagnosis';
+app.use('/api/diagnosis', diagnosisRouter); // Phase 7A — GET /entry-quality, GET /regime-stability
+
 export default app;

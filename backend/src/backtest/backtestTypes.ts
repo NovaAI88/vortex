@@ -67,6 +67,24 @@ export interface BacktestTrade {
   tp1Hit:       boolean;
   tp1PnL:       number;        // PnL from the 50% partial close
   remainderPnL: number;        // PnL from the remaining 50%
+
+  // ── Phase 7A: Entry-quality diagnostic fields ─────────────────────────
+  // All optional — populated by backtestSimulator when diagnostics enabled.
+  // Null means the value was not computable at entry (e.g. insufficient history).
+
+  regimeAge:              number | null; // candles current regime had been active at entry
+  regimeConfidenceAtEntry: number | null; // AIAnalysis.regimeConfidence at entry (0–1)
+  ema20SlopeAtEntry:      number | null; // EMA20[i] - EMA20[i-3], raw price units (+ = rising)
+  atrNormDistAtEntry:     number | null; // |price - ema20| / atr14 at entry (pullback in ATR units)
+
+  // RANGE-specific: where in the recent N-candle range the entry occurred.
+  // = (price - recentLow) / (recentHigh - recentLow), 0 = at low, 1 = at high.
+  // 0.5 = middle. For BUY signals: should be near 0 (near range low). For SELL: near 1.
+  // Null for TREND trades (field is irrelevant).
+  rangeLocationAtEntry:   number | null;
+
+  // Quick-stop flag: was stop-loss hit within 3 candles of entry?
+  quickStop:              boolean | null; // populated post-simulation by entryQualityAnalyzer
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────────
