@@ -11,6 +11,7 @@
 import express from 'express';
 import { startBacktest, getBacktestState, getBacktestResult } from '../backtest/backtestRunner';
 import { BacktestConfig } from '../backtest/backtestTypes';
+import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
 
 const router = express.Router();
 
@@ -69,7 +70,21 @@ router.post('/run', async (req, res) => {
       config.riskPerTrade = risk;
     }
 
-    const runId = await startBacktest(config);
+    // Optional ParamSet override — deep-merged with DEFAULT_PARAMS so callers
+    // only need to send the fields they want to change.
+    let params: ParamSet = DEFAULT_PARAMS;
+    if (body.params !== undefined && typeof body.params === 'object') {
+      params = {
+        ...DEFAULT_PARAMS,
+        id: body.params.id ?? 'manual',
+        exit:       { ...DEFAULT_PARAMS.exit,       ...(body.params.exit       ?? {}) },
+        trend:      { ...DEFAULT_PARAMS.trend,      ...(body.params.trend      ?? {}) },
+        range:      { ...DEFAULT_PARAMS.range,      ...(body.params.range      ?? {}) },
+        confidence: { ...DEFAULT_PARAMS.confidence, ...(body.params.confidence ?? {}) },
+      };
+    }
+
+    const runId = await startBacktest(config, params);
 
     res.json({
       runId,

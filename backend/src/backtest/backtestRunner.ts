@@ -20,6 +20,7 @@ import { runSimulation }          from './backtestSimulator';
 import { computeBacktestMetrics } from './backtestMetrics';
 import { analyzeEntryQuality }    from './entryQualityAnalyzer';
 import { BacktestConfig, BacktestState, BacktestResult, DEFAULT_CONFIG, BacktestTrade } from './backtestTypes';
+import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
 
 // ─── In-memory state ───────────────────────────────────────────────────────
 
@@ -42,7 +43,10 @@ export function getBacktestResult(): BacktestResult | null {
 
 // ─── Runner ────────────────────────────────────────────────────────────────
 
-export async function startBacktest(userConfig: Partial<BacktestConfig>): Promise<string> {
+export async function startBacktest(
+  userConfig: Partial<BacktestConfig>,
+  params:     ParamSet = DEFAULT_PARAMS,
+): Promise<string> {
   if (state.status === 'running') {
     throw new Error('A backtest is already running');
   }
@@ -54,14 +58,14 @@ export async function startBacktest(userConfig: Partial<BacktestConfig>): Promis
   state = { status: 'running', progress: 0 };
 
   // Execute async — result flows into state when done
-  executeBacktest(runId, config).catch(err => {
+  executeBacktest(runId, config, params).catch(err => {
     state = { status: 'error', error: String(err?.message ?? err) };
   });
 
   return runId;
 }
 
-async function executeBacktest(runId: string, config: BacktestConfig): Promise<void> {
+async function executeBacktest(runId: string, config: BacktestConfig, params: ParamSet = DEFAULT_PARAMS): Promise<void> {
   const startTime = new Date().toISOString();
   const t0        = Date.now();
 
@@ -86,16 +90,16 @@ async function executeBacktest(runId: string, config: BacktestConfig): Promise<v
 
     if (config.exitMode === 'both') {
       // Run ATR mode (primary for overall metrics)
-      const atrResult = runSimulation(replayStates, { ...config, exitMode: 'atr' }, undefined, extensions);
+      const atrResult = runSimulation(replayStates, { ...config, exitMode: 'atr' }, params, extensions);
 
       // Run fixed mode
-      const fixedResult = runSimulation(replayStates, { ...config, exitMode: 'fixed' }, undefined, extensions);
+      const fixedResult = runSimulation(replayStates, { ...config, exitMode: 'fixed' }, params, extensions);
 
       // Merge trade lists — tag trades from fixed run (exitSource already set by simulator)
       allTrades   = [...atrResult.trades, ...fixedResult.trades];
       equityCurve = atrResult.equityCurve; // primary curve = ATR run
     } else {
-      const simResult = runSimulation(replayStates, config, undefined, extensions);
+      const simResult = runSimulation(replayStates, config, params, extensions);
       allTrades   = simResult.trades;
       equityCurve = simResult.equityCurve;
     }

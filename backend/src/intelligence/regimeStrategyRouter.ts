@@ -37,6 +37,12 @@ import { publishTradeSignal }     from './publishers/tradeSignalPublisher';
 import { logSignal }              from './state/signalState';
 import { logger } from '../utils/logger';
 
+// ─── Feature flags ───────────────────────────────────────────────────────────
+// ENABLE_TREND: set to 'true' to allow TREND signals. Default OFF for Phase 7B
+// isolated RANGE evaluation. Reversible: restart with ENABLE_TREND=true to re-enable.
+
+const ENABLE_TREND = process.env.ENABLE_TREND === 'true';
+
 // ─── Router state ────────────────────────────────────────────────────────────
 // Single cache of the latest committed AIAnalysis from the AI pipeline.
 // The AI pipeline already applies a 3-tick stability gate before publishing,
@@ -144,9 +150,11 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
 
       switch (analysis.regime) {
         case 'TREND':
-          signal = generateTrendSignal(state, analysis);
-          // Clear any stale pending range signal on regime switch (already reset above,
-          // but guard here in case analysis lags by a tick)
+          // ENABLE_TREND=false → suppress all TREND signals without touching strategy logic.
+          // Set ENABLE_TREND=true in environment to re-enable.
+          if (ENABLE_TREND) {
+            signal = generateTrendSignal(state, analysis);
+          }
           pendingRangeSignal = null;
           break;
 
@@ -206,7 +214,7 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
     }
   });
 
-  logger.info('regimeRouter', 'Regime strategy router started — sole signal producer active (Phase 7B: regime-age tracking + confirmation gate enabled)');
+  logger.info('regimeRouter', `Regime strategy router started — TREND=${ENABLE_TREND ? 'ENABLED' : 'DISABLED (set ENABLE_TREND=true to re-enable)'} | RANGE=ENABLED`);
 }
 
 // ─── Router context builders ─────────────────────────────────────────────────
