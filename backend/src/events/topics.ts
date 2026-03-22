@@ -17,4 +17,6 @@ export const EVENT_TOPICS = {
   CANDLE_CLOSE_1M: 'candle.close.1m',
   CANDLE_CLOSE_5M: 'candle.close.5m',
   CANDLE_CLOSE_15M: 'candle.close.15m',
+  // Phase 2: AI regime analysis output (read-only, advisory)
+  AI_ANALYSIS: 'ai.analysis',
 };

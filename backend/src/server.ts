@@ -46,6 +46,7 @@ import { startCandleAggregator } from './ingestion/candles/candleAggregator';
 import { seedHistoricalCandles } from './ingestion/candles/candleSeeder';
 import { startFeaturePipeline } from './processing/featurePipeline';
 import { startNewsRiskMonitor } from './processing/newsRiskMonitor';
+import { startAIAnalysisPipeline } from './intelligence/aiAnalysisPipeline';
 import { logger } from './utils/logger';
 
 // Load persisted state before starting pipelines
@@ -67,6 +68,7 @@ seedHistoricalCandles().then(() => {
   startRiskPipeline(bus);
   startExecutionPipeline(bus);
   startPositionMonitor(bus);
+  startAIAnalysisPipeline(bus);
   startNewsRiskMonitor();
   logger.info('engine', 'All pipelines started — runtime ready', { mode: 'PAPER_TRADING' });
 }).catch(e => {
@@ -81,6 +83,7 @@ seedHistoricalCandles().then(() => {
   startRiskPipeline(bus);
   startExecutionPipeline(bus);
   startPositionMonitor(bus);
+  startAIAnalysisPipeline(bus);
   startNewsRiskMonitor();
   logger.info('engine', 'All pipelines started — runtime ready (no seed history)', { mode: 'PAPER_TRADING' });
 });

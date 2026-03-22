@@ -54,4 +54,7 @@ app.use('/api', manualRouter);
 import systemRouter from './system';
 app.use('/api', systemRouter);
 
+import aiAnalysisRouter from './aiAnalysis';
+app.use('/api', aiAnalysisRouter);
+
 export default app;

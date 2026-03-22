@@ -21,6 +21,7 @@ import { getMonitorStatus } from '../execution/positionMonitor';
 import { getCircuitBreakerState } from '../execution/circuitBreaker';
 import { getPortfolio } from '../portfolio/state/portfolioLedger';
 import { getRecentAlerts } from '../alerts/alertStore';
+import { getLastAnalysis } from '../intelligence/aiAnalysisPipeline';
 
 const router = Router();
 
@@ -32,7 +33,8 @@ router.get('/system/status', (_req, res) => {
     const monitor = getMonitorStatus();
     const breaker = getCircuitBreakerState();
     const portfolio = getPortfolio();
-    const alerts = getRecentAlerts(20);
+    const alerts   = getRecentAlerts(20);
+    const aiAnalysis = getLastAnalysis();
 
     // Derive top-level system health
     const tradingAllowed = risk.tradingAllowed && !!operator.tradingEnabled;
@@ -105,6 +107,18 @@ router.get('/system/status', (_req, res) => {
       },
 
       recentAlerts: alerts,
+
+      aiAnalysis: aiAnalysis
+        ? {
+            regime:           aiAnalysis.regime,
+            bias:             aiAnalysis.bias,
+            confidence:       aiAnalysis.confidence,
+            leverageBand:     aiAnalysis.leverageBand,
+            volatilityLevel:  aiAnalysis.volatilityLevel,
+            indicatorsWarm:   aiAnalysis.indicatorsWarm,
+            timestamp:        aiAnalysis.timestamp,
+          }
+        : { available: false },
     });
   } catch (e) {
     res.status(500).json({ error: 'System status unavailable', detail: String(e) });
