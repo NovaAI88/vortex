@@ -1,16 +1,21 @@
-// VORTEX — Diagnosis API (Phase 7A)
+// VORTEX — Diagnosis API (Phase 7A / Phase 7B)
 //
 // Routes:
-//   GET /api/diagnosis/entry-quality   → entry-quality bucketed report
-//   GET /api/diagnosis/regime-stability → regime episode analysis
+//   GET /api/diagnosis/entry-quality      → entry-quality bucketed report
+//   GET /api/diagnosis/regime-stability   → regime episode analysis
+//   GET /api/diagnosis/trend-suppression  → TREND signal rejection breakdown (Phase 7B)
 //
-// Both endpoints are synchronous (pure analysis of stored backtest result).
+// All endpoints are synchronous (pure analysis of stored backtest result).
 // They require a completed backtest (POST /api/backtest/run + status=done).
 //
 // The entry-quality endpoint re-runs the simulation with diagnostic extensions
 // enabled so that ema20Slope, recentHigh/Low, and regimeAge fields are available
 // on every trade. This is a lightweight re-run (~1s) of the last backtest config
 // using already-fetched candles stored in the last BacktestResult.
+//
+// The trend-suppression endpoint does NOT re-simulate trades. It iterates all warm
+// TREND-regime candles and records the rejection reason per candle — no I/O,
+// deterministic, fast.
 //
 // ── Note on re-simulation ────────────────────────────────────────────────────
 // The backtest runner stores the full BacktestResult including trade list and
@@ -23,7 +28,7 @@ import { getBacktestResult } from '../backtest/backtestRunner';
 import { fetchHistoricalCandles } from '../backtest/historicalDataFetcher';
 import { buildReplayStates } from '../backtest/historicalFeatureBuilder';
 import { runSimulation } from '../backtest/backtestSimulator';
-import { analyzeEntryQuality } from '../backtest/entryQualityAnalyzer';
+import { analyzeEntryQuality, analyzeTrendSuppression } from '../backtest/entryQualityAnalyzer';
 import { buildRegimeStabilityReport } from '../backtest/regimeStabilityReport';
 
 const router = express.Router();
@@ -116,6 +121,51 @@ router.get('/regime-stability', async (req, res) => {
         symbol:      config.symbol,
       },
       report: condensed,
+    });
+
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message ?? err) });
+  }
+});
+
+// ─── GET /api/diagnosis/trend-suppression ─────────────────────────────────
+// Phase 7B: definitive answer on why TREND signals are rare.
+// Re-fetches candles, builds replay states, then re-runs TREND strategy
+// diagnostically over every warm TREND-regime candle — recording the rejection
+// reason at each. Returns blocker frequency ranking + near-miss analysis.
+
+router.get('/trend-suppression', async (req, res) => {
+  try {
+    const btResult = getBacktestResult();
+    if (!btResult) {
+      return res.status(404).json({
+        error: 'No completed backtest. Run POST /api/backtest/run first.',
+      });
+    }
+
+    const config = btResult.config;
+
+    // Re-fetch candles using stored config (same source of truth as other endpoints)
+    const candles = await fetchHistoricalCandles({
+      symbol:   config.symbol,
+      interval: config.interval,
+      limit:    config.limit,
+    });
+
+    // Build replay states (no extensions needed — suppression analysis uses indicators only)
+    const states = buildReplayStates(candles);
+
+    // Run TREND suppression diagnostic
+    const report = analyzeTrendSuppression(states, 0);
+
+    res.json({
+      backtestConfig: {
+        interval:    config.interval,
+        limit:       config.limit,
+        symbol:      config.symbol,
+      },
+      totalCandlesReplayed: states.length,
+      report,
     });
 
   } catch (err: any) {

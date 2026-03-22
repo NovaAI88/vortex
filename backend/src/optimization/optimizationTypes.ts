@@ -14,16 +14,22 @@ export interface ExitParams {
 
 export interface TrendParams {
   adxMin:      number;  // default 25
-  pullbackMin: number;  // default 0.003
-  pullbackMax: number;  // default 0.025
+  pullbackMin: number;  // default 0.002 (Phase 7B: was 0.003)
+  pullbackMax: number;  // default 0.035 (Phase 7B: was 0.025)
   rsiLongMax:  number;  // default 75
   rsiShortMin: number;  // default 25
+  // Phase 7B: decoupled direction cap and bias inference
+  pullbackDirectionTolerance: number;  // default 0.005 — how far above EMA20 a LONG is still valid
+  allowStackInferredBias:     boolean; // default true — infer LONG/SHORT from EMA stack when bias=NEUTRAL
 }
 
 export interface RangeParams {
-  rsiOversold:     number;  // default 35
-  rsiOverbought:   number;  // default 65
-  breakoutMargin:  number;  // default 0.015
+  rsiOversold:              number;          // default 35
+  rsiOverbought:            number;          // default 65
+  breakoutMargin:           number;          // default 0.015
+  // Phase 7B: entry-quality filters (undefined = feature off / no gate applied)
+  maxRegimeAge?:            number;          // suppress RANGE signal if age > this; default: undefined (no gate)
+  rangeLocationThreshold?:  number;          // 0–1; longs blocked above, shorts below; default: undefined (no gate)
 }
 
 export interface ConfidenceParams {
@@ -38,7 +44,9 @@ export interface ParamSet {
   confidence: ConfidenceParams;
 }
 
-// Default parameter set — mirrors current hardcoded constants exactly
+// Default parameter set — mirrors current hardcoded constants exactly.
+// Phase 7B fields (maxRegimeAge, rangeLocationThreshold) are undefined by default,
+// meaning the gates are OFF and existing behavior is preserved until explicitly swept.
 export const DEFAULT_PARAMS: ParamSet = {
   id: 'default',
   exit: {
@@ -49,16 +57,20 @@ export const DEFAULT_PARAMS: ParamSet = {
     fallbackStopPct:       0.005,
   },
   trend: {
-    adxMin:      25,
-    pullbackMin: 0.003,
-    pullbackMax: 0.025,
-    rsiLongMax:  75,
-    rsiShortMin: 25,
+    adxMin:                    25,
+    pullbackMin:               0.002,  // Phase 7B: was 0.003
+    pullbackMax:               0.035,  // Phase 7B: was 0.025
+    rsiLongMax:                75,
+    rsiShortMin:               25,
+    pullbackDirectionTolerance: 0.005, // Phase 7B: new — decoupled direction cap
+    allowStackInferredBias:    true,   // Phase 7B: new — EMA stack bias inference
   },
   range: {
-    rsiOversold:    35,
-    rsiOverbought:  65,
-    breakoutMargin: 0.015,
+    rsiOversold:             35,
+    rsiOverbought:           65,
+    breakoutMargin:          0.015,
+    maxRegimeAge:            undefined,   // gate OFF by default
+    rangeLocationThreshold:  undefined,   // gate OFF by default
   },
   confidence: {
     minConfidence: 0,

@@ -63,7 +63,7 @@ export const STANDARD_DIMENSIONS: SweepDimension[] = [
   },
   {
     name:   'pullbackMin',
-    values: [0.002, 0.003, 0.005, 0.008],
+    values: [0.001, 0.002, 0.003, 0.005],  // Phase 7B: extended lower end (was 0.002–0.008)
     apply:  (base, v) => ({
       ...base,
       id: `${base.id}|pbMin=${v}`,
@@ -72,11 +72,32 @@ export const STANDARD_DIMENSIONS: SweepDimension[] = [
   },
   {
     name:   'pullbackMax',
-    values: [0.015, 0.020, 0.025, 0.030],
+    values: [0.025, 0.030, 0.035, 0.040],  // Phase 7B: extended upper end (was 0.015–0.030)
     apply:  (base, v) => ({
       ...base,
       id: `${base.id}|pbMax=${v}`,
       trend: { ...base.trend, pullbackMax: v },
+    }),
+  },
+  // Phase 7B: decoupled direction cap
+  {
+    name:   'pullbackDirectionTolerance',
+    values: [0.003, 0.005, 0.008, 0.010],
+    apply:  (base, v) => ({
+      ...base,
+      id: `${base.id}|pbDirTol=${v}`,
+      trend: { ...base.trend, pullbackDirectionTolerance: v },
+    }),
+  },
+  // Phase 7B: stack-inferred bias toggle
+  // Encoded as 0 (false) or 1 (true) since SweepDimension uses number[] for values.
+  {
+    name:   'allowStackInferredBias',
+    values: [0, 1],
+    apply:  (base, v) => ({
+      ...base,
+      id: `${base.id}|stackBias=${v}`,
+      trend: { ...base.trend, allowStackInferredBias: v === 1 },
     }),
   },
   {
@@ -126,6 +147,31 @@ export const STANDARD_DIMENSIONS: SweepDimension[] = [
       ...base,
       id: `${base.id}|conf=${v}`,
       confidence: { minConfidence: v },
+    }),
+  },
+
+  // ── Phase 7B: Range entry-quality filters ─────────────────────────────
+  // maxRegimeAge: suppress RANGE signals when regime has been active > N candles.
+  // Values include 999 as a sentinel representing "gate off" (no age limit).
+  {
+    name:   'maxRegimeAge',
+    values: [15, 18, 20, 25, 30],
+    apply:  (base, v) => ({
+      ...base,
+      id: `${base.id}|maxAge=${v}`,
+      range: { ...base.range, maxRegimeAge: v },
+    }),
+  },
+  // rangeLocationThreshold: the 0.5 midpoint boundary.
+  // Longs blocked above threshold; shorts blocked below.
+  // Values include 1.0 as sentinel = "gate off" (all locations allowed).
+  {
+    name:   'rangeLocationThreshold',
+    values: [0.40, 0.45, 0.50, 0.55],
+    apply:  (base, v) => ({
+      ...base,
+      id: `${base.id}|locThr=${v}`,
+      range: { ...base.range, rangeLocationThreshold: v },
     }),
   },
 ];
@@ -244,18 +290,22 @@ function extractDimValue(dim: SweepDimension, ps: ParamSet): number | null {
 function paramSetsEquivalentOnDim(probed: ParamSet, candidate: ParamSet, _dim: SweepDimension): boolean {
   // Compare all mutable fields
   return (
-    probed.exit.atrMultiplierTrend    === candidate.exit.atrMultiplierTrend    &&
-    probed.exit.atrMultiplierRange    === candidate.exit.atrMultiplierRange    &&
-    probed.exit.tp1PartialPct         === candidate.exit.tp1PartialPct         &&
-    probed.exit.fallbackStopPct       === candidate.exit.fallbackStopPct       &&
-    probed.trend.adxMin               === candidate.trend.adxMin               &&
-    probed.trend.pullbackMin          === candidate.trend.pullbackMin           &&
-    probed.trend.pullbackMax          === candidate.trend.pullbackMax           &&
-    probed.trend.rsiLongMax           === candidate.trend.rsiLongMax           &&
-    probed.trend.rsiShortMin          === candidate.trend.rsiShortMin          &&
-    probed.range.rsiOversold          === candidate.range.rsiOversold          &&
-    probed.range.rsiOverbought        === candidate.range.rsiOverbought        &&
-    probed.range.breakoutMargin       === candidate.range.breakoutMargin       &&
-    probed.confidence.minConfidence   === candidate.confidence.minConfidence
+    probed.exit.atrMultiplierTrend        === candidate.exit.atrMultiplierTrend        &&
+    probed.exit.atrMultiplierRange        === candidate.exit.atrMultiplierRange        &&
+    probed.exit.tp1PartialPct             === candidate.exit.tp1PartialPct             &&
+    probed.exit.fallbackStopPct           === candidate.exit.fallbackStopPct           &&
+    probed.trend.adxMin                        === candidate.trend.adxMin                        &&
+    probed.trend.pullbackMin                   === candidate.trend.pullbackMin                    &&
+    probed.trend.pullbackMax                   === candidate.trend.pullbackMax                    &&
+    probed.trend.rsiLongMax                    === candidate.trend.rsiLongMax                    &&
+    probed.trend.rsiShortMin                   === candidate.trend.rsiShortMin                   &&
+    probed.trend.pullbackDirectionTolerance    === candidate.trend.pullbackDirectionTolerance     &&
+    probed.trend.allowStackInferredBias        === candidate.trend.allowStackInferredBias         &&
+    probed.range.rsiOversold              === candidate.range.rsiOversold              &&
+    probed.range.rsiOverbought            === candidate.range.rsiOverbought            &&
+    probed.range.breakoutMargin           === candidate.range.breakoutMargin           &&
+    probed.range.maxRegimeAge             === candidate.range.maxRegimeAge             &&
+    probed.range.rangeLocationThreshold   === candidate.range.rangeLocationThreshold   &&
+    probed.confidence.minConfidence       === candidate.confidence.minConfidence
   );
 }

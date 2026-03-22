@@ -50,7 +50,7 @@ import { computeExitLevels }     from '../execution/exitCalculator';
 import { BacktestConfig, BacktestTrade, ExitReason } from './backtestTypes';
 import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
 import { TrendSignalParams } from '../intelligence/strategies/trendStrategy';
-import { RangeSignalParams }  from '../intelligence/strategies/rangeStrategy';
+import { RangeSignalParams, RangeRouterContext }  from '../intelligence/strategies/rangeStrategy';
 import { ExitLevelParams }    from '../execution/exitCalculator';
 import { ReplayExtensionMap } from './historicalFeatureBuilder';
 
@@ -115,17 +115,21 @@ export function runSimulation(
   let regimeStartIndex:   number        = 0;
 
   const trendParams: TrendSignalParams = {
-    adxMin:      p.trend.adxMin,
-    pullbackMin: p.trend.pullbackMin,
-    pullbackMax: p.trend.pullbackMax,
-    rsiLongMax:  p.trend.rsiLongMax,
-    rsiShortMin: p.trend.rsiShortMin,
+    adxMin:                    p.trend.adxMin,
+    pullbackMin:               p.trend.pullbackMin,
+    pullbackMax:               p.trend.pullbackMax,
+    rsiLongMax:                p.trend.rsiLongMax,
+    rsiShortMin:               p.trend.rsiShortMin,
+    pullbackDirectionTolerance: p.trend.pullbackDirectionTolerance, // Phase 7B
+    allowStackInferredBias:    p.trend.allowStackInferredBias,      // Phase 7B
   };
 
   const rangeParams: RangeSignalParams = {
-    rsiOversold:    p.range.rsiOversold,
-    rsiOverbought:  p.range.rsiOverbought,
-    breakoutMargin: p.range.breakoutMargin,
+    rsiOversold:             p.range.rsiOversold,
+    rsiOverbought:           p.range.rsiOverbought,
+    breakoutMargin:          p.range.breakoutMargin,
+    maxRegimeAge:            p.range.maxRegimeAge,            // Phase 7B: undefined = gate off
+    rangeLocationThreshold:  p.range.rangeLocationThreshold,  // Phase 7B: undefined = gate off
   };
 
   const exitParams: ExitLevelParams = {
@@ -173,7 +177,17 @@ export function runSimulation(
         if (analysis.regime === 'TREND') {
           signal = generateTrendSignal(state, analysis, trendParams);
         } else if (analysis.regime === 'RANGE') {
-          signal = generateRangeSignal(state, analysis, rangeParams);
+          // Build RangeRouterContext from backtest's own regime tracker + extension map.
+          // This mirrors what the live router does, keeping strategy calls identical.
+          const ext = extensions?.get(i) ?? null;
+          let rangeLocation: number | null = null;
+          if (ext !== null && ext.recentHigh20 !== null && ext.recentLow20 !== null && ext.recentHigh20 > ext.recentLow20) {
+            rangeLocation = Number(
+              ((state.price - ext.recentLow20) / (ext.recentHigh20 - ext.recentLow20)).toFixed(4)
+            );
+          }
+          const rangeCtx: RangeRouterContext = { regimeAge, rangeLocation };
+          signal = generateRangeSignal(state, analysis, rangeParams, rangeCtx);
         } else {
           signal = generateHighRiskSignal(state, analysis);
         }

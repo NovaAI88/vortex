@@ -33,9 +33,21 @@ const BREAKOUT_MARGIN   = 0.015; // 1.5% — beyond this = breakout, reject
 // Live pipeline never passes this argument. Defaults to module constants.
 
 export interface RangeSignalParams {
-  rsiOversold?:    number;
-  rsiOverbought?:  number;
-  breakoutMargin?: number;
+  rsiOversold?:           number;
+  rsiOverbought?:         number;
+  breakoutMargin?:        number;
+  // Phase 7B: entry-quality filters (passed from router context, not from strategy state)
+  maxRegimeAge?:          number;   // suppress signal if regimeAge > this; default: no gate
+  rangeLocationThreshold?: number;  // 0–1; longs blocked above, shorts blocked below; default: no gate
+}
+
+// ─── Router context (Phase 7B) ───────────────────────────────────────────────
+// Carries live fields computed by the router layer (not by strategies).
+// Strategies receive this as a read-only snapshot — no strategy owns this state.
+
+export interface RangeRouterContext {
+  regimeAge:     number;         // candles elapsed in current RANGE regime
+  rangeLocation: number | null;  // (price − low20) / (high20 − low20); null if window not ready
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -44,6 +56,7 @@ export function generateRangeSignal(
   state:    ProcessedMarketState,
   analysis: AIAnalysis,
   params?:  RangeSignalParams,
+  ctx?:     RangeRouterContext,  // Phase 7B: router-owned context; strategy is read-only
 ): TradeSignal | null {
   const price         = state.price;
   const adx14         = state.adx14  ?? null;
@@ -77,6 +90,14 @@ export function generateRangeSignal(
   const distFromEma = Math.abs(price - refEma) / price;
   if (distFromEma > breakoutMargin) return null;
 
+  // ── Phase 7B: stale regime gate ─────────────────────────────────────────
+  // Suppress signal when regime has been active too long (stale RANGE degrades).
+  // Only applied when ctx is provided (router path). Backtest path passes ctx
+  // from its own regime tracker. Live path: router provides ctx once implemented.
+  if (ctx !== undefined && params?.maxRegimeAge !== undefined) {
+    if (ctx.regimeAge > params.maxRegimeAge) return null;
+  }
+
   // ── RSI extreme entry ────────────────────────────────────────────────────
   let signalType: string | null = null;
 
@@ -88,16 +109,30 @@ export function generateRangeSignal(
 
   if (!signalType) return null;
 
+  // ── Phase 7B: range location filter ─────────────────────────────────────
+  // Longs only in the lower half of the range; shorts only in the upper half.
+  // Only applied when ctx carries a valid rangeLocation and params define the threshold.
+  if (ctx?.rangeLocation !== null && ctx?.rangeLocation !== undefined && params?.rangeLocationThreshold !== undefined) {
+    const loc = ctx.rangeLocation;
+    const threshold = params.rangeLocationThreshold;
+    if (signalType === 'buy'  && loc > threshold) return null;   // buying too high in range
+    if (signalType === 'sell' && loc < threshold) return null;   // selling too low in range
+  }
+
   // ── Signal ───────────────────────────────────────────────────────────────
   const emaLabel = ema50 !== null ? 'EMA50' : 'EMA20';
   const direction = signalType === 'buy' ? 'oversold' : 'overbought';
+  const locInfo = ctx?.rangeLocation !== null && ctx?.rangeLocation !== undefined
+    ? `, loc=${ctx.rangeLocation.toFixed(2)}`
+    : '';
+  const ageInfo = ctx !== undefined ? `, age=${ctx.regimeAge}` : '';
 
   return {
     source:     'regime-strategy-router',
     symbol:     state.symbol,
     signalType,
     confidence: analysis.confidence,
-    rationale:  `RANGE: RSI ${direction} (${rsi14.toFixed(1)}), price within ${(distFromEma * 100).toFixed(2)}% of ${emaLabel}${adx14 !== null ? `, ADX=${adx14.toFixed(1)}` : ''}`,
+    rationale:  `RANGE: RSI ${direction} (${rsi14.toFixed(1)}), price within ${(distFromEma * 100).toFixed(2)}% of ${emaLabel}${adx14 !== null ? `, ADX=${adx14.toFixed(1)}` : ''}${locInfo}${ageInfo}`,
     timestamp:  new Date().toISOString(),
     strategyId: 'regime-range',
     variantId:  'range-v1',
