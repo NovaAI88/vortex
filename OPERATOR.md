@@ -1,4 +1,4 @@
-# AETHER OPERATOR CHEATSHEET
+# VORTEX OPERATOR GUIDE
 
 ## System Start & Paper Trading (MVP)
 

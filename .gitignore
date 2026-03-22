@@ -20,3 +20,5 @@ ai/router/*last-run-output.txt
 ai/router/*.backup.jsonl
 ai/router/*.bak
 .cleanup-backups/
+data/
+*.jsonl

@@ -8,7 +8,7 @@ import { logRisk } from './state/riskState';
 import { getPortfolio } from '../portfolio/state/portfolioLedger';
 import { isTradingEnabled } from '../operator/operatorState';
 
-const processedIds = new Set<string>();
+import { hasProcessedId as hasDedupId, markProcessedId as markDedupId } from '../decision/state/dedupStore';
 const lastApprovedByKey = new Map<string, number>();
 const COOLDOWN_MS = 10_000;
 const PYRAMIDING_ENABLED = false;
@@ -19,7 +19,7 @@ export function startRiskPipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.DECISION_CANDIDATE, envelope => {
     try {
       const candidate = envelope.payload;
-      const duplicate = processedIds.has(candidate.id);
+      const duplicate = hasDedupId(candidate.id);
 
       console.log('[TRACE risk.input]', {
         symbol: candidate?.symbol,
@@ -245,7 +245,7 @@ export function startRiskPipeline(bus: EventBus): void {
       }
 
       if (!duplicate) {
-        processedIds.add(candidate.id);
+        markDedupId(candidate.id);
       }
     } catch (err) {
       // If error is critical, it will surface in test diagnostics

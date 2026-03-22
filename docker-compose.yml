@@ -1,17 +1,17 @@
 services:
   backend:
-    container_name: aether-backend
+    container_name: vortex-backend
     build: ./backend
     ports:
       - "3000:3000"
     volumes:
-      - aether-backend-data:/app/data
+      - vortex-backend-data:/app/data
 
   frontend:
-    container_name: aether-frontend
+    container_name: vortex-frontend
     build: ./frontend
     ports:
       - "8080:80"
 
 volumes:
-  aether-backend-data:
+  vortex-backend-data:

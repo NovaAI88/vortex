@@ -19,13 +19,13 @@ app.use((req, res, next) => {
 app.use('/', apiApp);
 
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'AETHER backend (src)' });
+  res.json({ status: 'ok', service: 'VORTEX backend' });
 });
 
 // --- Legacy /status endpoint for compatibility ---
 app.get('/status', (_req, res) => {
   res.json({
-    service: "AETHER backend",
+    service: "VORTEX backend",
     status: "running",
     time: new Date().toISOString()
   });
@@ -40,6 +40,10 @@ import { startDecisionPipeline } from './decision/decisionPipeline';
 import { startRiskPipeline } from './risk/riskPipeline';
 import { startExecutionPipeline } from './execution/executionPipeline';
 import { setEngineMode, EngineMode } from './execution/mode/executionMode';
+import { loadDedupStore } from './decision/state/dedupStore';
+
+// Load persisted state before starting pipelines
+loadDedupStore();
 
 const bus = new EventBus();
 setEngineMode(EngineMode.PAPER_TRADING);
@@ -55,5 +59,5 @@ console.log('[engine] Paper-trading runtime initialized (PAPER_TRADING mode enfo
 // --- END ENGINE BOOTSTRAP ---
 
 app.listen(port, () => {
-  console.log(`AETHER backend (src) running on port ${port}`);
+  console.log(`VORTEX backend running on port ${port}`);
 });

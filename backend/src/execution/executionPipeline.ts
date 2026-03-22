@@ -10,7 +10,7 @@ import { logExecution } from './executionLog';
 import { recordExecution } from '../portfolio/state/portfolioLedger';
 import { isTradingEnabled } from '../operator/operatorState';
 
-const processedRiskDecisionIds = new Set<string>();
+import { hasProcessedId, markProcessedId } from '../decision/state/dedupStore';
 
 export function startExecutionPipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.RISK_DECISION, envelope => {
@@ -27,7 +27,7 @@ export function startExecutionPipeline(bus: EventBus): void {
       riskDecisionId: decision?.id,
     });
 
-    if (processedRiskDecisionIds.has(decision.id)) return; // dedup gate
+    if (hasProcessedId(decision.id)) return; // dedup gate
 
     if (!decision.approved) return; // gate: only process approved
 
@@ -58,7 +58,7 @@ export function startExecutionPipeline(bus: EventBus): void {
         riskDecisionId: decision?.id,
       });
       publishExecutionResult(bus, pausedResult, 'execution', envelope.correlationId);
-      processedRiskDecisionIds.add(decision.id);
+      markProcessedId(decision.id);
       return;
     }
     const request: ExecutionRequest = {
@@ -67,13 +67,40 @@ export function startExecutionPipeline(bus: EventBus): void {
       actionCandidateId: decision.actionCandidateId,
       signalId: decision.signalId,
       strategyId: decision.strategyId,
-      symbol: decision.symbol || 'BTCUSDT', // fallback, required
-      side: decision.side || 'buy', // fallback, required
+      symbol: decision.symbol, // required — reject below if missing
+      side: decision.side,   // required — reject below if missing
       price: decision.price, // propagate price (ensure upstream includes price)
       variantId: decision.variantId, // propagate variantId
       producer: 'execution',
       timestamp: new Date().toISOString()
     };
+
+    // Safety gate: reject if symbol or side are missing — never silently fallback
+    if (!request.symbol || !request.side) {
+      const missingFields = [!request.symbol && 'symbol', !request.side && 'side'].filter(Boolean).join(', ');
+      const safetyResult = {
+        id: (Math.random() * 1e17).toString(36),
+        executionRequestId: request.id,
+        riskDecisionId: request.riskDecisionId,
+        actionCandidateId: request.actionCandidateId,
+        signalId: request.signalId,
+        strategyId: request.strategyId,
+        symbol: request.symbol || 'UNKNOWN',
+        side: request.side || 'UNKNOWN',
+        price: request.price,
+        qty: 0,
+        variantId: request.variantId,
+        status: 'rejected',
+        reason: `Missing required execution fields: ${missingFields}`,
+        adapter: 'executionPipeline',
+        timestamp: new Date().toISOString(),
+      } as any;
+      try { logExecution(safetyResult); } catch (e) {}
+      console.log('[TRACE execution.rejected.missing_fields]', { missingFields, riskDecisionId: decision?.id });
+      publishExecutionResult(bus, safetyResult, 'execution', envelope.correlationId);
+      markProcessedId(decision.id);
+      return;
+    }
 
     console.log('[TRACE execution.request]', {
       symbol: request.symbol,
@@ -88,16 +115,16 @@ export function startExecutionPipeline(bus: EventBus): void {
     });
     // Position sizing for PAPER_TRADING (adaptive risk-based dynamic)
     if (getEngineMode() === EngineMode.PAPER_TRADING) {
-      const BASE_RISK = Number(process.env.AETHER_RISK_PER_TRADE_BASE ?? process.env.AETHER_RISK_PER_TRADE ?? 0.005);
-      const MIN_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MIN ?? 0.0025);
-      const MAX_RISK = Number(process.env.AETHER_RISK_PER_TRADE_MAX ?? 0.005);
-      const STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.2, Number(process.env.AETHER_STOP_DISTANCE_PCT ?? 0.005)));
-      const MIN_STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.02, Number(process.env.AETHER_MIN_STOP_DISTANCE_PCT ?? 0.002)));
-      const MIN_TRADE_QTY = Math.max(0.000001, Number(process.env.AETHER_MIN_TRADE_QTY ?? 0.000001));
-      const MAX_FINAL_QTY = Math.max(MIN_TRADE_QTY, Number(process.env.AETHER_MAX_FINAL_QTY ?? 0.25));
-      const MIN_TRADE_NOTIONAL = Math.max(0, Number(process.env.AETHER_MIN_TRADE_NOTIONAL ?? 10));
-      const MAX_SYMBOL_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_SYMBOL_EXPOSURE_PCT ?? 0.15)));
-      const MAX_PORTFOLIO_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.AETHER_MAX_PORTFOLIO_EXPOSURE_PCT ?? 0.7)));
+      const BASE_RISK = Number(process.env.VORTEX_RISK_PER_TRADE_BASE ?? process.env.VORTEX_RISK_PER_TRADE ?? 0.005);
+      const MIN_RISK = Number(process.env.VORTEX_RISK_PER_TRADE_MIN ?? 0.0025);
+      const MAX_RISK = Number(process.env.VORTEX_RISK_PER_TRADE_MAX ?? 0.005);
+      const STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.2, Number(process.env.VORTEX_STOP_DISTANCE_PCT ?? 0.005)));
+      const MIN_STOP_DISTANCE_PCT = Math.max(0.001, Math.min(0.02, Number(process.env.VORTEX_MIN_STOP_DISTANCE_PCT ?? 0.002)));
+      const MIN_TRADE_QTY = Math.max(0.000001, Number(process.env.VORTEX_MIN_TRADE_QTY ?? 0.000001));
+      const MAX_FINAL_QTY = Math.max(MIN_TRADE_QTY, Number(process.env.VORTEX_MAX_FINAL_QTY ?? 0.25));
+      const MIN_TRADE_NOTIONAL = Math.max(0, Number(process.env.VORTEX_MIN_TRADE_NOTIONAL ?? 10));
+      const MAX_SYMBOL_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.VORTEX_MAX_SYMBOL_EXPOSURE_PCT ?? 0.15)));
+      const MAX_PORTFOLIO_EXPOSURE_PCT = Math.max(0.01, Math.min(1, Number(process.env.VORTEX_MAX_PORTFOLIO_EXPOSURE_PCT ?? 0.7)));
 
       const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -182,7 +209,7 @@ export function startExecutionPipeline(bus: EventBus): void {
           reason: result.reason,
         });
         publishExecutionResult(bus, result, 'execution', envelope.correlationId);
-        processedRiskDecisionIds.add(decision.id);
+        markProcessedId(decision.id);
         return;
       }
 
@@ -231,7 +258,7 @@ export function startExecutionPipeline(bus: EventBus): void {
         };
         try { logExecution(result); } catch (e) {}
         publishExecutionResult(bus, result, 'execution', envelope.correlationId);
-        processedRiskDecisionIds.add(decision.id);
+        markProcessedId(decision.id);
         return;
       }
 
@@ -316,7 +343,7 @@ export function startExecutionPipeline(bus: EventBus): void {
           });
         } catch (e) {}
         publishExecutionResult(bus, result, 'execution', envelope.correlationId);
-        processedRiskDecisionIds.add(decision.id);
+        markProcessedId(decision.id);
         return;
       }
 
@@ -376,6 +403,6 @@ export function startExecutionPipeline(bus: EventBus): void {
       });
       publishExecutionResult(bus, result, 'execution', envelope.correlationId);
     }
-    processedRiskDecisionIds.add(decision.id);
+    markProcessedId(decision.id);
   });
 }
