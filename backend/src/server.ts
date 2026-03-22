@@ -42,6 +42,7 @@ import { startExecutionPipeline } from './execution/executionPipeline';
 import { setEngineMode, EngineMode } from './execution/mode/executionMode';
 import { loadDedupStore } from './decision/state/dedupStore';
 import { startPositionMonitor } from './execution/positionMonitor';
+import { logger } from './utils/logger';
 
 // Load persisted state before starting pipelines
 loadDedupStore();
@@ -49,17 +50,16 @@ loadDedupStore();
 const bus = new EventBus();
 setEngineMode(EngineMode.PAPER_TRADING);
 startIngestion(bus, true); // false = mock, true = live
-console.log('[engine] PAPER TRADING MODE ACTIVE');
-console.log('[engine] LIVE MARKET DATA MODE ACTIVE (Binance public)');
+logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
 startProcessingPipeline(bus);
 startIntelligencePipeline(bus);
 startDecisionPipeline(bus);
 startRiskPipeline(bus);
 startExecutionPipeline(bus);
 startPositionMonitor(bus);
-console.log('[engine] Paper-trading runtime initialized (PAPER_TRADING mode enforced)');
+logger.info('engine', 'All pipelines started — runtime ready', { mode: 'PAPER_TRADING' });
 // --- END ENGINE BOOTSTRAP ---
 
 app.listen(port, () => {
-  console.log(`VORTEX backend running on port ${port}`);
+  logger.info('server', `VORTEX backend running on port ${port}`);
 });

@@ -51,4 +51,7 @@ app.use('/api/backtest', backtestRouter);
 import manualRouter from './manual';
 app.use('/api', manualRouter);
 
+import systemRouter from './system';
+app.use('/api', systemRouter);
+
 export default app;

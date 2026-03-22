@@ -16,6 +16,7 @@
 
 import { pauseTrading } from '../operator/operatorState';
 import { addRiskEvent } from '../risk/globalRiskController';
+import { logger } from '../utils/logger';
 
 const MAX_CONSECUTIVE_LOSSES = Number(process.env.VORTEX_CIRCUIT_BREAKER_MAX_LOSSES ?? 5);
 const WINDOW_MS = Number(process.env.VORTEX_CIRCUIT_BREAKER_WINDOW_MS ?? 10 * 60 * 1000); // 10 minutes
@@ -66,13 +67,13 @@ export function recordTradeOutcome(pnl: number, symbol: string, reason: string):
 
   if (consecutiveLosses >= MAX_CONSECUTIVE_LOSSES) {
     const msg = `Circuit breaker triggered: ${consecutiveLosses} consecutive losses within ${WINDOW_MS / 1000}s window`;
-    console.warn(`[CIRCUIT BREAKER] ${msg}`);
+    logger.warn('circuitBreaker', msg, { consecutiveLosses, symbol, windowMs: WINDOW_MS, maxLosses: MAX_CONSECUTIVE_LOSSES });
 
     try {
       pauseTrading();
       addRiskEvent('circuit_breaker_triggered', msg, { consecutiveLosses, symbol, windowMs: WINDOW_MS });
     } catch (e) {
-      console.error('[CIRCUIT BREAKER] Failed to pause trading:', e);
+      logger.error('circuitBreaker', 'Failed to pause trading', { err: String(e) });
     }
   }
 }

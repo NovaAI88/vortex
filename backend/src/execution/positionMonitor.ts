@@ -15,6 +15,7 @@
 
 import { EventBus } from '../events/eventBus';
 import { EVENT_TOPICS } from '../events/topics';
+import { logger } from '../utils/logger';
 import {
   getOpenPositionsWithProtection,
   forceClosePosition,
@@ -102,26 +103,19 @@ function checkPosition(
 
   const triggerReason: 'stop_loss' | 'take_profit' = stopBreached ? 'stop_loss' : 'take_profit';
 
-  console.log(`[POSITION MONITOR] ${triggerReason.replace('_', '-')} breach detected`, {
-    symbol,
-    side,
-    variantId,
-    currentPrice,
-    stopLoss,
-    takeProfit,
-    triggerReason,
+  logger.warn('positionMonitor', `${triggerReason.replace('_', '-')} breach detected`, {
+    symbol, side, variantId, currentPrice, stopLoss, takeProfit, triggerReason,
   });
 
   // Atomically close position in ledger FIRST — prevents double-close
   const pnl = forceClosePosition(positionKey, currentPrice, triggerReason);
 
   if (pnl === null) {
-    // Position was already closed (race condition guard)
-    console.log('[POSITION MONITOR] Position already closed — skipping duplicate close');
+    logger.info('positionMonitor', 'Position already closed — skipping duplicate close', { symbol, positionKey });
     return;
   }
 
-  console.log(`[POSITION MONITOR] Position closed. Symbol: ${symbol} | PnL: ${pnl.toFixed(2)} | Trigger: ${triggerReason}`);
+  logger.info('positionMonitor', 'Position closed', { symbol, side, variantId, pnl: Number(pnl.toFixed(2)), triggerReason });
 
   const closeResult = buildCloseResult(
     positionKey, symbol, side, qty, currentPrice, variantId, triggerReason, pnl
@@ -178,7 +172,7 @@ function runMonitorCycle(): void {
         currentPrice
       );
     } catch (e) {
-      console.error('[POSITION MONITOR] Error checking position:', e);
+      logger.error('positionMonitor', 'Error checking position', { err: String(e) });
     }
   }
 }
@@ -191,11 +185,11 @@ export function startPositionMonitor(eventBus: EventBus): void {
 
   bus = eventBus;
 
-  console.log(`[POSITION MONITOR] Starting — interval: ${MONITOR_INTERVAL_MS}ms, stale gate: ${STALE_PRICE_MS}ms`);
+  logger.info('positionMonitor', 'Starting', { intervalMs: MONITOR_INTERVAL_MS, stalePriceMs: STALE_PRICE_MS });
 
   monitorTimer = setInterval(() => {
     try { runMonitorCycle(); } catch (e) {
-      console.error('[POSITION MONITOR] Unexpected error in monitor cycle:', e);
+      logger.error('positionMonitor', 'Unexpected error in monitor cycle', { err: String(e) });
     }
   }, MONITOR_INTERVAL_MS);
 }
@@ -205,7 +199,7 @@ export function stopPositionMonitor(): void {
     clearInterval(monitorTimer);
     monitorTimer = null;
   }
-  console.log('[POSITION MONITOR] Stopped');
+  logger.info('positionMonitor', 'Stopped');
 }
 
 export function getMonitorStatus(): {
