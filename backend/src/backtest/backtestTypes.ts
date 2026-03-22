@@ -5,6 +5,8 @@
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
+export type StrategyMode = 'both' | 'range' | 'trend';
+
 export interface BacktestConfig {
   symbol:          string;         // 'BTCUSDT' (Phase 5 only)
   interval:        '1m' | '5m' | '15m';
@@ -13,6 +15,7 @@ export interface BacktestConfig {
   positionSizePct: number;         // fraction of equity per trade, default 0.1
   exitMode:        'atr' | 'fixed' | 'both'; // 'both' = run atr + fixed, compare
   riskPerTrade:    number;         // fraction of capital risked, default 0.01
+  strategyMode:    StrategyMode;   // 'both' (default) | 'range' | 'trend'
 }
 
 export const DEFAULT_CONFIG: BacktestConfig = {
@@ -23,6 +26,7 @@ export const DEFAULT_CONFIG: BacktestConfig = {
   positionSizePct: 0.1,
   exitMode:        'atr',
   riskPerTrade:    0.01,
+  strategyMode:    'both',
 };
 
 // ─── Trade record ─────────────────────────────────────────────────────────────

@@ -70,6 +70,13 @@ router.post('/run', async (req, res) => {
       config.riskPerTrade = risk;
     }
 
+    if (body.strategyMode !== undefined) {
+      if (!['both', 'range', 'trend'].includes(body.strategyMode)) {
+        return res.status(400).json({ error: 'strategyMode must be both, range, or trend' });
+      }
+      config.strategyMode = body.strategyMode;
+    }
+
     // Optional ParamSet override — deep-merged with DEFAULT_PARAMS so callers
     // only need to send the fields they want to change.
     let params: ParamSet = DEFAULT_PARAMS;
