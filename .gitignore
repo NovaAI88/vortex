@@ -22,3 +22,5 @@ ai/router/*.bak
 .cleanup-backups/
 data/
 *.jsonl
+data/
+*.jsonl
