@@ -1,6 +1,7 @@
 // Execution Layer orchestration: only approved RiskDecision, dedup, mockExec, publish
 import { EventBus } from '../events/eventBus';
 import { EVENT_TOPICS } from '../events/topics';
+import { computeExitLevels } from './exitCalculator';
 import { mockExchangeAdapter } from './adapters/mockExchangeAdapter';
 import { publishExecutionResult } from './publishers/executionResultPublisher';
 import { ExecutionRequest } from '../models/ExecutionRequest';
@@ -213,29 +214,26 @@ export function startExecutionPipeline(bus: EventBus): void {
         return;
       }
 
-      const decisionStopLoss = Number((decision as any)?.stopLoss);
-      const volatilityProxy = Number((decision as any)?.volatility ?? (decision as any)?.atr ?? (decision as any)?.volatilityProxy);
+      // Phase 4: ATR-based exit levels — replaces fixed-pct stop/TP
+      const decisionAtr14  = Number((decision as any)?.atr14);
+      const decisionRegime = String((decision as any)?.regime ?? '');
 
-      const computedStopLoss = Number.isFinite(decisionStopLoss) && decisionStopLoss > 0
-        ? decisionStopLoss
-        : Number((request.side === 'buy' ? request.price * (1 - 0.005) : request.price * (1 + 0.005)).toFixed(8));
-      const computedTakeProfit = Number((request.side === 'buy' ? request.price * (1 + 0.01) : request.price * (1 - 0.01)).toFixed(8));
-      request.stopLoss = computedStopLoss;
-      request.takeProfit = computedTakeProfit;
+      const exitLevels = computeExitLevels(
+        request.price,
+        request.side as 'buy' | 'sell',
+        Number.isFinite(decisionAtr14) && decisionAtr14 > 0 ? decisionAtr14 : null,
+        decisionRegime || null,
+      );
 
-      let stopDistanceSource: 'stopLoss' | 'volatility' | 'fallbackPct' = 'fallbackPct';
-      let stopDistance = request.price * STOP_DISTANCE_PCT;
+      request.stopLoss   = exitLevels.stopLoss;
+      request.takeProfit = exitLevels.tp2;   // hard TP remains tp2 (2R) for position monitor full-close fallback
+      (request as any).tp1      = exitLevels.tp1;      // partial-close target
+      (request as any).tp2      = exitLevels.tp2;      // trailing stop activation target
+      (request as any).rMultiple = exitLevels.rMultiple;
+      (request as any).exitSource = exitLevels.source;
 
-      if (Number.isFinite(computedStopLoss) && computedStopLoss > 0) {
-        const d = Math.abs(request.price - computedStopLoss);
-        if (Number.isFinite(d) && d > 0) {
-          stopDistance = d;
-          stopDistanceSource = 'stopLoss';
-        }
-      } else if (Number.isFinite(volatilityProxy) && volatilityProxy > 0) {
-        stopDistance = volatilityProxy;
-        stopDistanceSource = 'volatility';
-      }
+      const stopDistanceSource: 'atr' | 'fallback' = exitLevels.source;
+      const stopDistance = exitLevels.rMultiple;
 
       const minStopDistance = request.price * MIN_STOP_DISTANCE_PCT;
       if (!Number.isFinite(stopDistance) || stopDistance <= 0 || stopDistance < minStopDistance) {
@@ -301,11 +299,16 @@ export function startExecutionPipeline(bus: EventBus): void {
         equity,
         baseRisk: BASE_RISK,
         adaptedRisk: adaptiveRisk,
-        stopDistanceSource,
+        exitSource: stopDistanceSource,
+        atr14Used: exitLevels.atrUsed,
+        multiplierUsed: exitLevels.multiplierUsed,
         stopDistance,
         minStopDistance,
         stopLoss: request.stopLoss,
+        tp1: (request as any).tp1,
+        tp2: (request as any).tp2,
         takeProfit: request.takeProfit,
+        rMultiple: exitLevels.rMultiple,
         qtyByRisk,
         qtyByMaxPosition,
         maxFinalQty: MAX_FINAL_QTY,

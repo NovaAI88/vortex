@@ -52,6 +52,8 @@ export function mockExchangeAdapter(request: ExecutionRequest): ExecutionResult 
 
   const { fillPrice, slippageBps } = computeFillPrice(requestPrice, request.side, qty);
 
+  const req = request as any; // Phase 4 fields are attached dynamically
+
   return {
     id: (Math.random() * 1e17).toString(36),
     executionRequestId: request.id,
@@ -66,9 +68,14 @@ export function mockExchangeAdapter(request: ExecutionRequest): ExecutionResult 
     variantId: request.variantId,
     stopLoss: request.stopLoss,
     takeProfit: request.takeProfit,
+    // Phase 4: ATR-based exit fields — propagated to portfolio ledger
+    ...(req.tp1       !== undefined && { tp1:       req.tp1 }),
+    ...(req.tp2       !== undefined && { tp2:       req.tp2 }),
+    ...(req.rMultiple !== undefined && { rMultiple: req.rMultiple }),
+    ...(req.exitSource !== undefined && { exitSource: req.exitSource }),
     status: 'simulated',
     reason: `Simulated fill at ${fillPrice} (slippage: ${slippageBps} bps, requested: ${requestPrice})`,
     adapter: 'mockExchangeAdapter',
     timestamp: new Date().toISOString(),
-  };
+  } as ExecutionResult;
 }

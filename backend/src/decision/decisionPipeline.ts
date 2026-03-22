@@ -16,11 +16,16 @@ export function startDecisionPipeline(bus: EventBus): void {
     });
 
     const candidate = basicSignalEvaluator(signal);
-    // Propagate strategyId, price, and variantId from signal
+    // Propagate strategyId, price, variantId, and Phase 4 ATR fields from signal
     if (signal && candidate) {
       candidate.strategyId = signal.strategyId || signal.source || 'unknown';
-      candidate.price = signal.baseState && typeof signal.baseState.price === 'number' ? signal.baseState.price : undefined; // Safe extraction
+      candidate.price = signal.baseState && typeof signal.baseState.price === 'number' ? signal.baseState.price : undefined;
       if ('variantId' in signal && typeof signal.variantId === 'string') candidate.variantId = signal.variantId;
+      // Phase 4: thread ATR14 and regime for exit calculator
+      const baseState = signal.baseState as any;
+      candidate.atr14  = (baseState?.atr14  !== undefined && baseState?.atr14  !== null) ? Number(baseState.atr14)  : null;
+      candidate.regime = (baseState?.regime  !== undefined && baseState?.regime  !== null) ? String(baseState.regime)
+        : typeof (signal as any).regime === 'string' ? (signal as any).regime : null;
     }
     // Bridge: log for API
     try { require('./state/decisionState').logDecision(candidate); } catch(e) {}

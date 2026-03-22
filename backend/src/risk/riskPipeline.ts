@@ -219,10 +219,13 @@ export function startRiskPipeline(bus: EventBus): void {
       // Propagate required execution-routing fields from candidate
       if (candidate && decision) {
         decision.strategyId = candidate.strategyId || candidate.strategy || 'unknown';
-        (decision as any).symbol = candidate.symbol;
-        (decision as any).side = candidate.side;
-        decision.price = candidate.price;
-        decision.variantId = candidate.variantId;
+        (decision as any).symbol    = candidate.symbol;
+        (decision as any).side      = candidate.side;
+        decision.price              = candidate.price;
+        decision.variantId          = candidate.variantId;
+        // Phase 4: pass ATR14 + regime through to execution pipeline
+        (decision as any).atr14  = candidate.atr14  ?? null;
+        (decision as any).regime = candidate.regime ?? null;
       }
       // Bridge: log for API
       try { logRisk(decision); } catch(e) {}

@@ -21,6 +21,12 @@ type StoredPosition = {
   plannedEntry?: number | null;
   stopLoss?: number | null;
   takeProfit?: number | null;
+  // Phase 4: ATR-based exit system fields
+  tp1?: number | null;           // first partial-close target (1.5R)
+  tp2?: number | null;           // trailing stop activation target (2R)
+  tp1Hit?: boolean;              // true once TP1 partial close has been executed
+  trailingStopPrice?: number | null; // current trailing stop level (null until activated)
+  rMultiple?: number | null;     // R-unit (stop distance in $) for this position
   lastUpdated?: string;
 };
 
@@ -138,6 +144,11 @@ function newPosition(symbol: string, variantId?: string | null, price = 0): Stor
     plannedEntry: null,
     stopLoss: null,
     takeProfit: null,
+    tp1: null,
+    tp2: null,
+    tp1Hit: false,
+    trailingStopPrice: null,
+    rMultiple: null,
     lastUpdated: new Date().toISOString(),
   };
 }
@@ -162,7 +173,15 @@ function deriveProtectiveLevels(exec: ExecutionResult | undefined, price: number
     ? explicitTake
     : Number((side === 'buy' ? price * (1 + 0.01) : price * (1 - 0.01)).toFixed(8));
 
-  return { stopLoss, takeProfit };
+  // Phase 4: ATR-based exit fields (propagated from executionPipeline via exec)
+  const tp1      = Number.isFinite(Number((exec as any)?.tp1)) && Number((exec as any)?.tp1) > 0
+    ? Number((exec as any).tp1) : null;
+  const tp2      = Number.isFinite(Number((exec as any)?.tp2)) && Number((exec as any)?.tp2) > 0
+    ? Number((exec as any).tp2) : null;
+  const rMultiple = Number.isFinite(Number((exec as any)?.rMultiple)) && Number((exec as any)?.rMultiple) > 0
+    ? Number((exec as any).rMultiple) : null;
+
+  return { stopLoss, takeProfit, tp1, tp2, rMultiple };
 }
 
 function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition: string, signedQty: number, price: number, variantId?: string | null, exec?: ExecutionResult) {
@@ -177,6 +196,12 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
     const protection = deriveProtectiveLevels(exec, price, signedQty >= 0 ? 'buy' : 'sell');
     pos.stopLoss = protection.stopLoss;
     pos.takeProfit = protection.takeProfit;
+    // Phase 4: ATR-based exit fields
+    pos.tp1      = protection.tp1 ?? null;
+    pos.tp2      = protection.tp2 ?? null;
+    pos.rMultiple = protection.rMultiple ?? null;
+    pos.tp1Hit   = false;
+    pos.trailingStopPrice = null;
   } else if ((pos.qty > 0 && signedQty < 0) || (pos.qty < 0 && signedQty > 0)) {
     const closeQty = Math.min(Math.abs(signedQty), Math.abs(pos.qty));
     const pnl = (price - pos.avgEntry) * closeQty * Math.sign(pos.qty);
@@ -191,6 +216,11 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
       pos.side = 'flat';
       pos.stopLoss = null;
       pos.takeProfit = null;
+      pos.tp1 = null;
+      pos.tp2 = null;
+      pos.tp1Hit = false;
+      pos.trailingStopPrice = null;
+      pos.rMultiple = null;
     }
   } else {
     pos.avgEntry = (pos.avgEntry * Math.abs(pos.qty) + price * Math.abs(signedQty)) / (Math.abs(pos.qty + signedQty));
@@ -261,6 +291,12 @@ export type MonitoredPosition = {
   takeProfit: number | null;
   variantId: string | null;
   positionKey: string;
+  // Phase 4 fields
+  tp1: number | null;
+  tp2: number | null;
+  tp1Hit: boolean;
+  trailingStopPrice: number | null;
+  rMultiple: number | null;
 };
 
 export function getOpenPositionsWithProtection(): MonitoredPosition[] {
@@ -270,18 +306,108 @@ export function getOpenPositionsWithProtection(): MonitoredPosition[] {
     if (pos.markPrice === null || pos.markPrice <= 0) continue;
     if (pos.side === 'flat') continue;
     result.push({
-      symbol: pos.symbol,
-      qty: pos.qty,
-      side: pos.side as 'long' | 'short',
-      avgEntry: pos.avgEntry,
-      markPrice: pos.markPrice,
-      stopLoss: pos.stopLoss ?? null,
-      takeProfit: pos.takeProfit ?? null,
-      variantId: pos.variantId ?? null,
-      positionKey: key,
+      symbol:           pos.symbol,
+      qty:              pos.qty,
+      side:             pos.side as 'long' | 'short',
+      avgEntry:         pos.avgEntry,
+      markPrice:        pos.markPrice,
+      stopLoss:         pos.stopLoss         ?? null,
+      takeProfit:       pos.takeProfit       ?? null,
+      variantId:        pos.variantId        ?? null,
+      positionKey:      key,
+      // Phase 4
+      tp1:              pos.tp1              ?? null,
+      tp2:              pos.tp2              ?? null,
+      tp1Hit:           pos.tp1Hit           ?? false,
+      trailingStopPrice: pos.trailingStopPrice ?? null,
+      rMultiple:        pos.rMultiple        ?? null,
     });
   }
   return result;
+}
+
+// Phase 4: Partially close a position (used by position monitor on TP1 hit).
+// closeQty must be positive. Returns realized PnL of the partial close, or null if
+// position not found / already closed.
+export function partialClosePosition(
+  positionKey: string,
+  closeQty:    number,
+  closePrice:  number,
+  reason:      string,
+): number | null {
+  const pos = globalBook.positions[positionKey];
+  if (!pos || pos.qty === 0) return null;
+  if (closeQty <= 0 || !Number.isFinite(closeQty)) return null;
+
+  const safeClose = Math.min(Math.abs(closeQty), Math.abs(pos.qty));
+  const signedClose = pos.qty > 0 ? safeClose : -safeClose;
+
+  // PnL from partial close
+  const pnl = (closePrice - pos.avgEntry) * Math.abs(signedClose) * Math.sign(pos.qty);
+  globalBook.realizedPnL += pnl;
+  globalBook.balance += closePrice * safeClose * (pos.qty > 0 ? 1 : -1);
+
+  // Reduce position qty — avgEntry unchanged (cost basis of remainder preserved)
+  pos.qty -= signedClose;
+
+  if (pos.qty === 0) {
+    pos.side = 'flat';
+    pos.stopLoss = null;
+    pos.takeProfit = null;
+    pos.tp1 = null;
+    pos.tp2 = null;
+    pos.tp1Hit = false;
+    pos.trailingStopPrice = null;
+    pos.rMultiple = null;
+    pos.avgEntry = 0;
+    pos.markPrice = closePrice;
+    pos.unrealizedPnL = 0;
+  } else {
+    // Mark TP1 hit — trailing stop will be activated by position monitor
+    pos.tp1Hit = true;
+    pos.tp1 = null; // TP1 consumed — no longer a target
+    pos.markPrice = closePrice;
+    pos.unrealizedPnL = (closePrice - pos.avgEntry) * pos.qty;
+  }
+
+  pos.lastUpdated = new Date().toISOString();
+
+  // Log partial close in trade history
+  const tradeEntry = {
+    id:          (Math.random() * 1e17).toString(36),
+    symbol:      pos.symbol,
+    side:        pos.qty >= 0 ? 'sell' : 'buy', // closing direction
+    qty:         safeClose,
+    price:       closePrice,
+    variantId:   pos.variantId || null,
+    realizedPnL: pnl,
+    reason,
+    adapter:     'positionMonitor',
+    strategyId:  'position-monitor',
+    status:      'simulated',
+    timestamp:   new Date().toISOString(),
+  };
+  globalBook.trades.push(tradeEntry);
+  while (globalBook.trades.length > 500) globalBook.trades.shift();
+
+  // Update equity
+  globalBook.equity = globalBook.balance + Object.values(globalBook.positions).reduce((eq, p) => {
+    if (p.qty === 0 || p.markPrice === null) return eq;
+    return eq + (p.qty > 0 ? p.qty * closePrice : Math.abs(p.qty) * (p.avgEntry - closePrice));
+  }, 0);
+
+  persistState();
+  return pnl;
+}
+
+// Phase 4: Update trailing stop price in the ledger for a position.
+// Called by the position monitor after advanceTrail() to keep ledger in sync.
+export function updateTrailingStopPrice(positionKey: string, trailingStopPrice: number): void {
+  const pos = globalBook.positions[positionKey];
+  if (!pos || pos.qty === 0) return;
+  pos.trailingStopPrice = trailingStopPrice;
+  pos.lastUpdated = new Date().toISOString();
+  persistState();
 }
 
 // Force-close a position by key (used by position monitor).
@@ -304,6 +430,11 @@ export function forceClosePosition(positionKey: string, closePrice: number, reas
   pos.avgEntry = 0;
   pos.stopLoss = null;
   pos.takeProfit = null;
+  pos.tp1 = null;
+  pos.tp2 = null;
+  pos.tp1Hit = false;
+  pos.trailingStopPrice = null;
+  pos.rMultiple = null;
   pos.lastUpdated = new Date().toISOString();
 
   // Mirror close in variant book if present
@@ -397,17 +528,23 @@ export function getPortfolio() {
   const frontendPositions = Object.values(globalBook.positions)
     .filter((pos) => pos.qty !== 0)
     .map((pos) => ({
-      symbol: pos.symbol,
-      side: pos.side,
-      qty: pos.qty,
-      avgEntry: pos.avgEntry,
-      markPrice: pos.markPrice,
-      unrealizedPnL: pos.unrealizedPnL,
-      variantId: pos.variantId || null,
-      plannedEntry: pos.plannedEntry,
-      stopLoss: pos.stopLoss,
-      takeProfit: pos.takeProfit,
-      lastUpdated: pos.lastUpdated,
+      symbol:           pos.symbol,
+      side:             pos.side,
+      qty:              pos.qty,
+      avgEntry:         pos.avgEntry,
+      markPrice:        pos.markPrice,
+      unrealizedPnL:    pos.unrealizedPnL,
+      variantId:        pos.variantId || null,
+      plannedEntry:     pos.plannedEntry,
+      stopLoss:         pos.stopLoss,
+      takeProfit:       pos.takeProfit,
+      // Phase 4
+      tp1:              pos.tp1              ?? null,
+      tp2:              pos.tp2              ?? null,
+      tp1Hit:           pos.tp1Hit           ?? false,
+      trailingStopPrice: pos.trailingStopPrice ?? null,
+      rMultiple:        pos.rMultiple        ?? null,
+      lastUpdated:      pos.lastUpdated,
     }));
 
   const positionsValue = Object.values(globalBook.positions).reduce((val, p) => {
