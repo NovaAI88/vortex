@@ -1,28 +1,129 @@
-import express from 'express';
-import { backtestRun, backtestResults } from '../backtest/backtestRunner';
+// VORTEX — Backtest API (Phase 5)
+//
+// Routes:
+//   POST /api/backtest/run     → start a backtest run with BacktestConfig
+//   GET  /api/backtest/status  → current run status + progress
+//   GET  /api/backtest/results → full BacktestResult (if done)
+//
+// The run is asynchronous. Poll /status until 'done' or 'error',
+// then fetch /results.
 
-// Mock sample: minimal valid ProcessedMarketState[]
-const mockCandles = [
-  { exchange: 'TEST', symbol: 'A', eventType: 'trade', price: 100, volume: 5, timestamp: new Date().toISOString(), movingAvg: 98, enriched: true, baseEvent: {} },
-  { exchange: 'TEST', symbol: 'A', eventType: 'trade', price: 104, volume: 7, timestamp: new Date().toISOString(), movingAvg: 99, enriched: true, baseEvent: {} },
-  { exchange: 'TEST', symbol: 'A', eventType: 'trade', price: 110, volume: 8, timestamp: new Date().toISOString(), movingAvg: 100, enriched: true, baseEvent: {} },
-  { exchange: 'TEST', symbol: 'A', eventType: 'trade', price: 92, volume: 4, timestamp: new Date().toISOString(), movingAvg: 97, enriched: true, baseEvent: {} },
-];
+import express from 'express';
+import { startBacktest, getBacktestState, getBacktestResult } from '../backtest/backtestRunner';
+import { BacktestConfig } from '../backtest/backtestTypes';
 
 const router = express.Router();
 
-// GET /api/backtest/run?variants=v1,v2,v3
-router.get('/run', async (req, res) => {
-  const variants = (req.query.variants as string || '').split(',').filter(Boolean);
-  if (!variants.length) return res.status(400).json({ error: 'No variants specified' });
-  // Minimal: run on mock data
-  const results = await backtestRun(mockCandles, variants);
-  res.json({ results });
+// ─── POST /api/backtest/run ───────────────────────────────────────────────
+
+router.post('/run', async (req, res) => {
+  try {
+    const body = req.body ?? {};
+
+    // Validate + extract config fields (all optional — runner applies defaults)
+    const config: Partial<BacktestConfig> = {};
+
+    if (body.interval !== undefined) {
+      if (!['1m', '5m', '15m'].includes(body.interval)) {
+        return res.status(400).json({ error: 'interval must be 1m, 5m, or 15m' });
+      }
+      config.interval = body.interval;
+    }
+
+    if (body.limit !== undefined) {
+      const limit = Number(body.limit);
+      if (!Number.isFinite(limit) || limit < 50 || limit > 1000) {
+        return res.status(400).json({ error: 'limit must be 50–1000' });
+      }
+      config.limit = limit;
+    }
+
+    if (body.initialCapital !== undefined) {
+      const ic = Number(body.initialCapital);
+      if (!Number.isFinite(ic) || ic <= 0) {
+        return res.status(400).json({ error: 'initialCapital must be a positive number' });
+      }
+      config.initialCapital = ic;
+    }
+
+    if (body.positionSizePct !== undefined) {
+      const pct = Number(body.positionSizePct);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 1) {
+        return res.status(400).json({ error: 'positionSizePct must be 0–1' });
+      }
+      config.positionSizePct = pct;
+    }
+
+    if (body.exitMode !== undefined) {
+      if (!['atr', 'fixed', 'both'].includes(body.exitMode)) {
+        return res.status(400).json({ error: 'exitMode must be atr, fixed, or both' });
+      }
+      config.exitMode = body.exitMode;
+    }
+
+    if (body.riskPerTrade !== undefined) {
+      const risk = Number(body.riskPerTrade);
+      if (!Number.isFinite(risk) || risk <= 0 || risk > 0.5) {
+        return res.status(400).json({ error: 'riskPerTrade must be 0–0.5' });
+      }
+      config.riskPerTrade = risk;
+    }
+
+    const runId = await startBacktest(config);
+
+    res.json({
+      runId,
+      status: 'started',
+      message: 'Backtest started. Poll GET /api/backtest/status for progress.',
+    });
+
+  } catch (err: any) {
+    // startBacktest throws if already running
+    if (err?.message?.includes('already running')) {
+      return res.status(409).json({ error: err.message });
+    }
+    res.status(500).json({ error: String(err?.message ?? err) });
+  }
 });
 
-// GET /api/backtest/results
-router.get('/results', (req, res) => {
-  res.json({ results: backtestResults() });
+// ─── GET /api/backtest/status ─────────────────────────────────────────────
+
+router.get('/status', (_req, res) => {
+  const s = getBacktestState();
+  res.json({
+    status:   s.status,
+    progress: s.progress ?? null,
+    error:    s.error    ?? null,
+  });
+});
+
+// ─── GET /api/backtest/results ────────────────────────────────────────────
+
+router.get('/results', (_req, res) => {
+  const s = getBacktestState();
+
+  if (s.status === 'idle') {
+    return res.status(404).json({ error: 'No backtest has been run yet' });
+  }
+
+  if (s.status === 'running') {
+    return res.status(202).json({
+      status:   'running',
+      progress: s.progress ?? 0,
+      message:  'Backtest still in progress. Retry when status is done.',
+    });
+  }
+
+  if (s.status === 'error') {
+    return res.status(500).json({ status: 'error', error: s.error });
+  }
+
+  const result = getBacktestResult();
+  if (!result) {
+    return res.status(404).json({ error: 'No result available' });
+  }
+
+  res.json({ status: 'done', result });
 });
 
 export default router;

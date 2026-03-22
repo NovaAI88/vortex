@@ -46,7 +46,7 @@ import marketRouter from './market';
 app.use('/api', marketRouter);
 
 import backtestRouter from './backtest';
-app.use('/api/backtest', backtestRouter);
+app.use('/api/backtest', backtestRouter);  // Phase 5 — POST /run, GET /status, GET /results
 
 import manualRouter from './manual';
 app.use('/api', manualRouter);
