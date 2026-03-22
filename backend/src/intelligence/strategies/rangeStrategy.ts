@@ -28,17 +28,18 @@ const ADX_MAX           = 25;    // regime gate — redundant safety check
 const RSI_OVERSOLD      = 35;    // buy zone
 const RSI_OVERBOUGHT    = 65;    // sell zone
 const BREAKOUT_MARGIN   = 0.015; // 1.5% — beyond this = breakout, reject
+const MAX_REGIME_AGE    = 20;    // Phase 7B: suppress RANGE signals after this many candles in regime
 
 // ─── Optional param overrides (optimizer only) ───────────────────────────────
 // Live pipeline never passes this argument. Defaults to module constants.
 
 export interface RangeSignalParams {
-  rsiOversold?:           number;
-  rsiOverbought?:         number;
-  breakoutMargin?:        number;
+  rsiOversold?:            number;
+  rsiOverbought?:          number;
+  breakoutMargin?:         number;
   // Phase 7B: entry-quality filters (passed from router context, not from strategy state)
-  maxRegimeAge?:          number;   // suppress signal if regimeAge > this; default: no gate
-  rangeLocationThreshold?: number;  // 0–1; longs blocked above, shorts blocked below; default: no gate
+  maxRegimeAge?:           number;   // suppress signal if regimeAge > this; default: MAX_REGIME_AGE (20)
+  rangeLocationThreshold?: number;   // 0–1; longs blocked above, shorts blocked below; default: no gate
 }
 
 // ─── Router context (Phase 7B) ───────────────────────────────────────────────
@@ -92,10 +93,12 @@ export function generateRangeSignal(
 
   // ── Phase 7B: stale regime gate ─────────────────────────────────────────
   // Suppress signal when regime has been active too long (stale RANGE degrades).
-  // Only applied when ctx is provided (router path). Backtest path passes ctx
-  // from its own regime tracker. Live path: router provides ctx once implemented.
-  if (ctx !== undefined && params?.maxRegimeAge !== undefined) {
-    if (ctx.regimeAge > params.maxRegimeAge) return null;
+  // Active whenever ctx is provided — falls back to MAX_REGIME_AGE (20) if no
+  // explicit override in params. Optimizer passes overrides; live router passes
+  // ctx with no params, so the default applies.
+  if (ctx !== undefined) {
+    const maxAge = params?.maxRegimeAge ?? MAX_REGIME_AGE;
+    if (ctx.regimeAge > maxAge) return null;
   }
 
   // ── RSI extreme entry ────────────────────────────────────────────────────

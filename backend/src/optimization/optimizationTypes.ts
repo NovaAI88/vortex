@@ -69,8 +69,8 @@ export const DEFAULT_PARAMS: ParamSet = {
     rsiOversold:             35,
     rsiOverbought:           65,
     breakoutMargin:          0.015,
-    maxRegimeAge:            undefined,   // gate OFF by default
-    rangeLocationThreshold:  undefined,   // gate OFF by default
+    maxRegimeAge:            20,          // Phase 7B default — gate active at 20 candles
+    rangeLocationThreshold:  undefined,   // gate OFF by default (not yet activated)
   },
   confidence: {
     minConfidence: 0,
