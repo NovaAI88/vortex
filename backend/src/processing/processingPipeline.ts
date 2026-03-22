@@ -4,11 +4,18 @@ import { EVENT_TOPICS } from '../events/topics';
 import { isValidMarketEvent } from './validators/marketEventValidator';
 import { enrichMarketEvent } from './enrichers/basicEnricher';
 import { publishProcessedMarketState } from './publishers/processedStatePublisher';
+import { processTick } from '../ingestion/candles/candleAggregator';
 
 export function startProcessingPipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.MARKET_EVENT, envelope => {
     const evt = envelope.payload;
     if (isValidMarketEvent(evt)) {
+      // Phase 1: feed tick into candle aggregator (side-channel, non-blocking)
+      try {
+        const tsMs = new Date(evt.timestamp).getTime();
+        if (Number.isFinite(tsMs)) processTick(evt.symbol, evt.price, evt.volume, tsMs);
+      } catch {}
+
       const state = enrichMarketEvent(evt);
       // Bridge: update latest order book
       try {

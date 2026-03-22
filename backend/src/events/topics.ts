@@ -13,4 +13,8 @@ export const EVENT_TOPICS = {
   POSITION_MONITOR_CLOSE: 'position.monitor.close',
   // V2: circuit breaker emits this when consecutive-loss threshold is reached
   CIRCUIT_BREAKER_TRIGGERED: 'circuit.breaker.triggered',
+  // Phase 1: candle close events from candle aggregator
+  CANDLE_CLOSE_1M: 'candle.close.1m',
+  CANDLE_CLOSE_5M: 'candle.close.5m',
+  CANDLE_CLOSE_15M: 'candle.close.15m',
 };

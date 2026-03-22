@@ -42,6 +42,10 @@ import { startExecutionPipeline } from './execution/executionPipeline';
 import { setEngineMode, EngineMode } from './execution/mode/executionMode';
 import { loadDedupStore } from './decision/state/dedupStore';
 import { startPositionMonitor } from './execution/positionMonitor';
+import { startCandleAggregator } from './ingestion/candles/candleAggregator';
+import { seedHistoricalCandles } from './ingestion/candles/candleSeeder';
+import { startFeaturePipeline } from './processing/featurePipeline';
+import { startNewsRiskMonitor } from './processing/newsRiskMonitor';
 import { logger } from './utils/logger';
 
 // Load persisted state before starting pipelines
@@ -49,15 +53,37 @@ loadDedupStore();
 
 const bus = new EventBus();
 setEngineMode(EngineMode.PAPER_TRADING);
-startIngestion(bus, true); // false = mock, true = live
-logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
-startProcessingPipeline(bus);
-startIntelligencePipeline(bus);
-startDecisionPipeline(bus);
-startRiskPipeline(bus);
-startExecutionPipeline(bus);
-startPositionMonitor(bus);
-logger.info('engine', 'All pipelines started — runtime ready', { mode: 'PAPER_TRADING' });
+startCandleAggregator(bus);
+
+// Seed historical candles before starting pipelines so indicators are warm from tick 1.
+// Non-blocking: failure logs a warning but does not prevent startup.
+seedHistoricalCandles().then(() => {
+  startFeaturePipeline(bus);
+  startIngestion(bus, true); // false = mock, true = live
+  logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
+  startProcessingPipeline(bus);
+  startIntelligencePipeline(bus);
+  startDecisionPipeline(bus);
+  startRiskPipeline(bus);
+  startExecutionPipeline(bus);
+  startPositionMonitor(bus);
+  startNewsRiskMonitor();
+  logger.info('engine', 'All pipelines started — runtime ready', { mode: 'PAPER_TRADING' });
+}).catch(e => {
+  // Should never reach here — seedHistoricalCandles() catches internally — but belt + braces.
+  logger.error('engine', 'Unexpected seed error — starting without history', { err: String(e) });
+  startFeaturePipeline(bus);
+  startIngestion(bus, true);
+  logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
+  startProcessingPipeline(bus);
+  startIntelligencePipeline(bus);
+  startDecisionPipeline(bus);
+  startRiskPipeline(bus);
+  startExecutionPipeline(bus);
+  startPositionMonitor(bus);
+  startNewsRiskMonitor();
+  logger.info('engine', 'All pipelines started — runtime ready (no seed history)', { mode: 'PAPER_TRADING' });
+});
 // --- END ENGINE BOOTSTRAP ---
 
 app.listen(port, () => {
