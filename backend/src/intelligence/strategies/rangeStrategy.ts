@@ -1,0 +1,91 @@
+// VORTEX — Range Strategy (Phase 3)
+//
+// Mean-reversion strategy for RANGE regime.
+// Entry logic: RSI extremes with breakout rejection.
+//
+// Signal conditions (all must pass):
+//   - adx14 < 25
+//   - RSI extreme: rsi14 <= 35 (oversold → buy) or rsi14 >= 65 (overbought → sell)
+//   - No breakout: price must be within 1.5% of ema20 (or ema50 if available)
+//   - newsRiskFlag must be false
+//
+// Signal type:
+//   - "buy"  when rsi14 <= 35 (mean-reversion from oversold)
+//   - "sell" when rsi14 >= 65 (mean-reversion from overbought)
+//   - null   when conditions not met
+//
+// Confidence: uses AIAnalysis.confidence (already accounts for ADX weakness)
+//
+// AI boundary: read-only. No imports from execution, risk, operator, portfolio.
+
+import { ProcessedMarketState } from '../../models/ProcessedMarketState';
+import { TradeSignal } from '../../models/TradeSignal';
+import { AIAnalysis } from '../aiAnalysisEngine';
+
+// ─── Thresholds ─────────────────────────────────────────────────────────────
+
+const ADX_MAX           = 25;    // regime gate — redundant safety check
+const RSI_OVERSOLD      = 35;    // buy zone
+const RSI_OVERBOUGHT    = 65;    // sell zone
+const BREAKOUT_MARGIN   = 0.015; // 1.5% — beyond this = breakout, reject
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+export function generateRangeSignal(
+  state: ProcessedMarketState,
+  analysis: AIAnalysis,
+): TradeSignal | null {
+  const price         = state.price;
+  const adx14         = state.adx14  ?? null;
+  const rsi14         = state.rsi14  ?? null;
+  const ema20         = state.ema20  ?? null;
+  const ema50         = state.ema50  ?? null;
+  const newsRiskFlag  = state.newsRiskFlag ?? false;
+
+  // ── Guard: indicators must be warm ──────────────────────────────────────
+  if (!state.indicatorsWarm) return null;
+
+  // ── Guard: must have RSI ─────────────────────────────────────────────────
+  if (rsi14 === null) return null;
+
+  // ── Guard: must have a reference EMA ────────────────────────────────────
+  const refEma = ema50 ?? ema20;
+  if (refEma === null) return null;
+
+  // ── Guard: news risk active — no range trades ────────────────────────────
+  if (newsRiskFlag) return null;
+
+  // ── Guard: ADX must confirm weak trend (range) ───────────────────────────
+  if (adx14 !== null && adx14 >= ADX_MAX) return null;
+
+  // ── Guard: breakout rejection — price must stay near EMA cluster ─────────
+  const distFromEma = Math.abs(price - refEma) / price;
+  if (distFromEma > BREAKOUT_MARGIN) return null;
+
+  // ── RSI extreme entry ────────────────────────────────────────────────────
+  let signalType: string | null = null;
+
+  if (rsi14 <= RSI_OVERSOLD) {
+    signalType = 'buy';
+  } else if (rsi14 >= RSI_OVERBOUGHT) {
+    signalType = 'sell';
+  }
+
+  if (!signalType) return null;
+
+  // ── Signal ───────────────────────────────────────────────────────────────
+  const emaLabel = ema50 !== null ? 'EMA50' : 'EMA20';
+  const direction = signalType === 'buy' ? 'oversold' : 'overbought';
+
+  return {
+    source:     'regime-strategy-router',
+    symbol:     state.symbol,
+    signalType,
+    confidence: analysis.confidence,
+    rationale:  `RANGE: RSI ${direction} (${rsi14.toFixed(1)}), price within ${(distFromEma * 100).toFixed(2)}% of ${emaLabel}${adx14 !== null ? `, ADX=${adx14.toFixed(1)}` : ''}`,
+    timestamp:  new Date().toISOString(),
+    strategyId: 'regime-range',
+    variantId:  'range-v1',
+    baseState:  state,
+  };
+}

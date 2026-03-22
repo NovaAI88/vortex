@@ -47,6 +47,7 @@ import { seedHistoricalCandles } from './ingestion/candles/candleSeeder';
 import { startFeaturePipeline } from './processing/featurePipeline';
 import { startNewsRiskMonitor } from './processing/newsRiskMonitor';
 import { startAIAnalysisPipeline } from './intelligence/aiAnalysisPipeline';
+import { startRegimeStrategyRouter } from './intelligence/regimeStrategyRouter';
 import { logger } from './utils/logger';
 
 // Load persisted state before starting pipelines
@@ -63,12 +64,13 @@ seedHistoricalCandles().then(() => {
   startIngestion(bus, true); // false = mock, true = live
   logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
   startProcessingPipeline(bus);
-  startIntelligencePipeline(bus);
+  startIntelligencePipeline(bus);  // gated OFF by default — regime router is sole signal producer
+  startAIAnalysisPipeline(bus);    // must start before regime router (provides AI_ANALYSIS events)
+  startRegimeStrategyRouter(bus);  // Phase 3: sole signal producer
   startDecisionPipeline(bus);
   startRiskPipeline(bus);
   startExecutionPipeline(bus);
   startPositionMonitor(bus);
-  startAIAnalysisPipeline(bus);
   startNewsRiskMonitor();
   logger.info('engine', 'All pipelines started — runtime ready', { mode: 'PAPER_TRADING' });
 }).catch(e => {
@@ -78,12 +80,13 @@ seedHistoricalCandles().then(() => {
   startIngestion(bus, true);
   logger.info('engine', 'PAPER_TRADING mode active — live Binance market data enabled');
   startProcessingPipeline(bus);
-  startIntelligencePipeline(bus);
+  startIntelligencePipeline(bus);  // gated OFF by default — regime router is sole signal producer
+  startAIAnalysisPipeline(bus);    // must start before regime router
+  startRegimeStrategyRouter(bus);  // Phase 3: sole signal producer
   startDecisionPipeline(bus);
   startRiskPipeline(bus);
   startExecutionPipeline(bus);
   startPositionMonitor(bus);
-  startAIAnalysisPipeline(bus);
   startNewsRiskMonitor();
   logger.info('engine', 'All pipelines started — runtime ready (no seed history)', { mode: 'PAPER_TRADING' });
 });
