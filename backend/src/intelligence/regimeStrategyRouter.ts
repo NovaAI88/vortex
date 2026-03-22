@@ -40,8 +40,9 @@ import { logger } from '../utils/logger';
 // ─── Feature flags ───────────────────────────────────────────────────────────
 // ENABLE_TREND: set to 'true' to allow TREND signals. Default OFF for Phase 7B
 // isolated RANGE evaluation. Reversible: restart with ENABLE_TREND=true to re-enable.
+// Read lazily (at call time) so test environments can set the env var after module load.
 
-const ENABLE_TREND = process.env.ENABLE_TREND === 'true';
+const isTrendEnabled = (): boolean => process.env.ENABLE_TREND === 'true';
 
 // ─── Router state ────────────────────────────────────────────────────────────
 // Single cache of the latest committed AIAnalysis from the AI pipeline.
@@ -152,8 +153,8 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
         case 'TREND':
           // ENABLE_TREND=false → suppress all TREND signals without touching strategy logic.
           // Set ENABLE_TREND=true in environment to re-enable.
-          if (ENABLE_TREND) {
-            signal = generateTrendSignal(state, analysis);
+          if (isTrendEnabled()) {
+            signal = generateTrendSignal(state, analysis, undefined, regimeAge);
           }
           pendingRangeSignal = null;
           break;
@@ -214,7 +215,7 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
     }
   });
 
-  logger.info('regimeRouter', `Regime strategy router started — TREND=${ENABLE_TREND ? 'ENABLED' : 'DISABLED (set ENABLE_TREND=true to re-enable)'} | RANGE=ENABLED`);
+  logger.info('regimeRouter', `Regime strategy router started — TREND=${isTrendEnabled() ? 'ENABLED' : 'DISABLED (set ENABLE_TREND=true to re-enable)'} | RANGE=ENABLED`);
 }
 
 // ─── Router context builders ─────────────────────────────────────────────────

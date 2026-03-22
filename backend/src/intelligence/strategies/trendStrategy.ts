@@ -43,6 +43,7 @@ const PULLBACK_MAX                 = 0.035; // 3.5% — max distance from EMA20 
 const PULLBACK_DIRECTION_TOLERANCE = 0.005; // 0.5% — how far above EMA20 a LONG is still valid
                                             // (Phase 7B: replaces reuse of pullbackMin as direction cap)
 const ALLOW_STACK_INFERRED_BIAS    = true;  // Phase 7B: infer bias from EMA stack when NEUTRAL
+const MIN_REGIME_AGE               = 3;     // Phase 2: skip entry if regime switched < N candles ago
 
 // ─── Optional param overrides (optimizer only) ───────────────────────────────
 // Live pipeline never passes this argument. Defaults to module constants.
@@ -56,6 +57,8 @@ export interface TrendSignalParams {
   // Phase 7B
   pullbackDirectionTolerance?: number;  // direction cap — decoupled from pullbackMin
   allowStackInferredBias?:     boolean; // infer LONG/SHORT from EMA stack when bias=NEUTRAL
+  // Phase 2 (post-isolation)
+  minRegimeAge?:               number;  // block entries when regime is too fresh (default 3)
 }
 
 // ─── Rejection reason (Phase 7B diagnostic) ──────────────────────────────────
@@ -66,6 +69,7 @@ export type TrendRejectionReason =
   | 'indicators_cold'
   | 'missing_adx_or_ema20'
   | 'adx_too_low'
+  | 'regime_too_fresh'         // regimeAge < minRegimeAge (Phase 2)
   | 'neutral_bias'             // bias NEUTRAL and stack inference disabled or stack ambiguous
   | 'ema_stack_misaligned'
   | 'rsi_overextended'
@@ -142,9 +146,10 @@ function isEmaStackAligned(
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 export function generateTrendSignal(
-  state:    ProcessedMarketState,
-  analysis: AIAnalysis,
-  params?:  TrendSignalParams,
+  state:      ProcessedMarketState,
+  analysis:   AIAnalysis,
+  params?:    TrendSignalParams,
+  regimeAge?: number,  // Phase 2: candles elapsed since regime switched (from router/simulator)
 ): TradeSignal | null {
   const price  = state.price;
   const adx14  = state.adx14  ?? null;
@@ -154,13 +159,14 @@ export function generateTrendSignal(
   const ema200 = state.ema200 ?? null;
 
   // Resolve thresholds — params override defaults; live path never provides params
-  const adxMin                   = params?.adxMin                   ?? ADX_MIN;
-  const pullbackMin               = params?.pullbackMin               ?? PULLBACK_MIN;
-  const pullbackMax               = params?.pullbackMax               ?? PULLBACK_MAX;
-  const rsiLongMax                = params?.rsiLongMax                ?? RSI_LONG_MAX;
-  const rsiShortMin               = params?.rsiShortMin               ?? RSI_SHORT_MIN;
+  const adxMin                    = params?.adxMin                    ?? ADX_MIN;
+  const pullbackMin                = params?.pullbackMin                ?? PULLBACK_MIN;
+  const pullbackMax                = params?.pullbackMax                ?? PULLBACK_MAX;
+  const rsiLongMax                 = params?.rsiLongMax                 ?? RSI_LONG_MAX;
+  const rsiShortMin                = params?.rsiShortMin                ?? RSI_SHORT_MIN;
   const pullbackDirectionTolerance = params?.pullbackDirectionTolerance ?? PULLBACK_DIRECTION_TOLERANCE;
-  const allowStackInferredBias    = params?.allowStackInferredBias    ?? ALLOW_STACK_INFERRED_BIAS;
+  const allowStackInferredBias     = params?.allowStackInferredBias     ?? ALLOW_STACK_INFERRED_BIAS;
+  const minRegimeAge               = params?.minRegimeAge               ?? MIN_REGIME_AGE;
 
   // ── Guard: indicators must be warm ──────────────────────────────────────
   if (!state.indicatorsWarm) return null;
@@ -170,6 +176,11 @@ export function generateTrendSignal(
 
   // ── Guard: ADX must confirm trend strength ───────────────────────────────
   if (adx14 < adxMin) return null;
+
+  // ── Guard: regime must be established (Phase 2) ──────────────────────────
+  // Avoid entering on the first few candles of a regime switch — the regime
+  // engine hasn't had time to confirm direction and entries here lose at >50%.
+  if (regimeAge !== undefined && regimeAge < minRegimeAge) return null;
 
   // ── Resolve effective bias ───────────────────────────────────────────────
   // When analysis.bias is NEUTRAL, attempt EMA-stack inference if enabled.
@@ -227,9 +238,10 @@ export function generateTrendSignal(
 // Live router calls generateTrendSignal() only — this has no live path.
 
 export function generateTrendSignalWithDiagnostic(
-  state:    ProcessedMarketState,
-  analysis: AIAnalysis,
-  params?:  TrendSignalParams,
+  state:      ProcessedMarketState,
+  analysis:   AIAnalysis,
+  params?:    TrendSignalParams,
+  regimeAge?: number,  // Phase 2: candles elapsed since regime switched
 ): TrendSignalDiagnostic {
   const price  = state.price;
   const adx14  = state.adx14  ?? null;
@@ -245,6 +257,7 @@ export function generateTrendSignalWithDiagnostic(
   const rsiShortMin                = params?.rsiShortMin                ?? RSI_SHORT_MIN;
   const pullbackDirectionTolerance  = params?.pullbackDirectionTolerance  ?? PULLBACK_DIRECTION_TOLERANCE;
   const allowStackInferredBias     = params?.allowStackInferredBias     ?? ALLOW_STACK_INFERRED_BIAS;
+  const minRegimeAge               = params?.minRegimeAge               ?? MIN_REGIME_AGE;
 
   const distFromEma20 = ema20 !== null ? Math.abs(price - ema20) / price : null;
 
@@ -273,6 +286,9 @@ export function generateTrendSignalWithDiagnostic(
   }
   if (adx14 < adxMin) {
     return { signal: null, rejectionReason: 'adx_too_low', ...snapshot };
+  }
+  if (regimeAge !== undefined && regimeAge < minRegimeAge) {
+    return { signal: null, rejectionReason: 'regime_too_fresh', ...snapshot };
   }
   if (effectiveBias === 'NEUTRAL') {
     return { signal: null, rejectionReason: 'neutral_bias', ...snapshot };

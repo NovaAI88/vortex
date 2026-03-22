@@ -21,6 +21,8 @@ export interface TrendParams {
   // Phase 7B: decoupled direction cap and bias inference
   pullbackDirectionTolerance: number;  // default 0.005 — how far above EMA20 a LONG is still valid
   allowStackInferredBias:     boolean; // default true — infer LONG/SHORT from EMA stack when bias=NEUTRAL
+  // Phase 2 (post-isolation): minimum regime age before entry is allowed
+  minRegimeAge: number;  // default 3 — block entries when regime switched < N candles ago
 }
 
 export interface RangeParams {
@@ -64,6 +66,7 @@ export const DEFAULT_PARAMS: ParamSet = {
     rsiShortMin:               25,
     pullbackDirectionTolerance: 0.005, // Phase 7B: new — decoupled direction cap
     allowStackInferredBias:    true,   // Phase 7B: new — EMA stack bias inference
+    minRegimeAge:              3,      // Phase 2: new — block entries before regime is established
   },
   range: {
     rsiOversold:             35,

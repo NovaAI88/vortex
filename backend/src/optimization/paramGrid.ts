@@ -100,6 +100,17 @@ export const STANDARD_DIMENSIONS: SweepDimension[] = [
       trend: { ...base.trend, allowStackInferredBias: v === 1 },
     }),
   },
+  // Phase 2 (post-isolation): minimum regime age before TREND entry is allowed.
+  // 0 = gate off (allow all ages); 3 = default; higher = stricter.
+  {
+    name:   'minRegimeAge',
+    values: [0, 2, 3, 5, 8],
+    apply:  (base, v) => ({
+      ...base,
+      id: `${base.id}|minAge=${v}`,
+      trend: { ...base.trend, minRegimeAge: v },
+    }),
+  },
   {
     name:   'rsiLongMax',
     values: [65, 70, 75, 80],
@@ -301,6 +312,7 @@ function paramSetsEquivalentOnDim(probed: ParamSet, candidate: ParamSet, _dim: S
     probed.trend.rsiShortMin                   === candidate.trend.rsiShortMin                   &&
     probed.trend.pullbackDirectionTolerance    === candidate.trend.pullbackDirectionTolerance     &&
     probed.trend.allowStackInferredBias        === candidate.trend.allowStackInferredBias         &&
+    probed.trend.minRegimeAge                  === candidate.trend.minRegimeAge                   &&
     probed.range.rsiOversold              === candidate.range.rsiOversold              &&
     probed.range.rsiOverbought            === candidate.range.rsiOverbought            &&
     probed.range.breakoutMargin           === candidate.range.breakoutMargin           &&

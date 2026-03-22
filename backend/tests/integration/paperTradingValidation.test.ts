@@ -82,6 +82,11 @@ describe('Paper Trading Validation', () => {
     setEngineMode(EngineMode.PAPER_TRADING);
     resumeEngine();
 
+    // Enable TREND for this test — the router reads this flag lazily (at call time).
+    // The live server defaults to ENABLE_TREND=false for isolated RANGE evaluation;
+    // the integration test always needs TREND enabled to validate full pipeline flow.
+    process.env.ENABLE_TREND = 'true';
+
     const bus = new EventBus();
 
     // Start pipelines — regime router is sole signal producer (no processing pipeline needed)
@@ -110,7 +115,15 @@ describe('Paper Trading Validation', () => {
     // Step 1: seed AI analysis so regime router has a committed regime
     publishEnvelope(bus, EVENT_TOPICS.AI_ANALYSIS, SEED_ANALYSIS, 'test-fixture');
 
-    // Step 2: publish warm ProcessedMarketState directly (bypasses ingestion/enrichment)
+    // Step 2: publish warm-up ticks to establish regime age >= minRegimeAge (default 3).
+    // These ticks age the regime without triggering a signal (no position open yet).
+    // Required since Phase 2 added a minRegimeAge gate to TREND entries.
+    for (let i = 0; i < 3; i++) {
+      publishEnvelope(bus, EVENT_TOPICS.PROCESSING_STATE, BASE_STATE, 'test-fixture-warmup');
+    }
+
+    // Step 3: publish warm ProcessedMarketState directly (bypasses ingestion/enrichment)
+    // Regime is now established (age >= 3) — signals will fire.
     for (let i = 0; i < 3; i++) {
       const state = { ...BASE_STATE, timestamp: new Date(Date.now() + i * 100).toISOString() };
       publishEnvelope(bus, EVENT_TOPICS.PROCESSING_STATE, state, 'test-fixture');

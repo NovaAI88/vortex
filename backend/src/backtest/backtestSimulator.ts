@@ -122,6 +122,7 @@ export function runSimulation(
     rsiShortMin:               p.trend.rsiShortMin,
     pullbackDirectionTolerance: p.trend.pullbackDirectionTolerance, // Phase 7B
     allowStackInferredBias:    p.trend.allowStackInferredBias,      // Phase 7B
+    minRegimeAge:              p.trend.minRegimeAge,                // Phase 2
   };
 
   const rangeParams: RangeSignalParams = {
@@ -174,9 +175,10 @@ export function runSimulation(
         // Filtered by confidence threshold
       } else {
         let signal = null;
-        if (analysis.regime === 'TREND') {
-          signal = generateTrendSignal(state, analysis, trendParams);
-        } else if (analysis.regime === 'RANGE') {
+        const mode = config.strategyMode ?? 'both';
+        if (analysis.regime === 'TREND' && (mode === 'both' || mode === 'trend')) {
+          signal = generateTrendSignal(state, analysis, trendParams, regimeAge);
+        } else if (analysis.regime === 'RANGE' && (mode === 'both' || mode === 'range')) {
           // Build RangeRouterContext from backtest's own regime tracker + extension map.
           // This mirrors what the live router does, keeping strategy calls identical.
           const ext = extensions?.get(i) ?? null;
