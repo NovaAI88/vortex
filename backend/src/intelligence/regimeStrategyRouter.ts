@@ -31,7 +31,7 @@ import { EVENT_TOPICS } from '../events/topics';
 import { AIAnalysis } from './aiAnalysisEngine';
 import { ProcessedMarketState } from '../models/ProcessedMarketState';
 import { generateTrendSignal, generateTrendSignalWithDiagnostic }    from './strategies/trendStrategy';
-import { generateRangeSignal, RangeRouterContext }    from './strategies/rangeStrategy';
+import { generateRangeSignalWithDiagnostic, RangeRouterContext }    from './strategies/rangeStrategy';
 import { generateHighRiskSignal } from './strategies/highRiskStrategy';
 import { publishTradeSignal }     from './publishers/tradeSignalPublisher';
 import { logSignal }              from './state/signalState';
@@ -225,7 +225,31 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
           break;
 
         case 'RANGE': {
-          const candidateSignal = generateRangeSignal(state, analysis, undefined, rangeCtx);
+          const rangeDiag = generateRangeSignalWithDiagnostic(state, analysis, undefined, rangeCtx);
+          const candidateSignal = rangeDiag.signal;
+
+          if (SIGNAL_DEBUG) {
+            logger.info('regimeRouter.debug', 'RANGE_EVAL', {
+              tick: thisTick,
+              regime: analysis.regime,
+              bias: analysis.bias,
+              confidence: analysis.confidence,
+              regimeAge,
+              indicatorsWarm: state.indicatorsWarm,
+              price: state.price,
+              ema20: state.ema20 ?? null,
+              ema50: state.ema50 ?? null,
+              adx14: state.adx14 ?? null,
+              rsi14: state.rsi14 ?? null,
+              newsRiskFlag: state.newsRiskFlag ?? false,
+              rangeLocation: rangeDiag.rangeLocation,
+              rejectionReason: rangeDiag.rejectionReason ?? 'pass',
+              candidateSignal: candidateSignal ? true : false,
+              candidateSignalType: candidateSignal?.signalType ?? null,
+              pendingSignalType: pendingRangeSignal?.signalType ?? null,
+              pendingTickIndex: pendingRangeSignal?.tickIndex ?? null,
+            });
+          }
 
           if (candidateSignal) {
             // Confirmation-tick gate: was a signal in the same direction pending?
