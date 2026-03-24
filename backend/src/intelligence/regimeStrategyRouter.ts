@@ -244,6 +244,7 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
               newsRiskFlag: state.newsRiskFlag ?? false,
               rangeLocation: rangeDiag.rangeLocation,
               rejectionReason: rangeDiag.rejectionReason ?? 'pass',
+              triggerMode: rangeDiag.triggerMode ?? null,
               candidateSignal: candidateSignal ? true : false,
               candidateSignalType: candidateSignal?.signalType ?? null,
               pendingSignalType: pendingRangeSignal?.signalType ?? null,

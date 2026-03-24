@@ -31,6 +31,10 @@ const BREAKOUT_MARGIN   = 0.015; // 1.5% — beyond this = breakout, reject
 const MAX_REGIME_AGE    = 20;    // Phase 7B: suppress RANGE signals after this many candles in regime
 const RANGE_LONG_MAX    = 0.20;  // Stage 1: longs only in lower 20% of range
 const RANGE_SHORT_MIN   = 0.80;  // Stage 1: shorts only in upper 20% of range
+const RANGE_DEEP_LONG_MAX  = 0.10; // Stage 2: context-first long zone (deep lower range)
+const RANGE_DEEP_SHORT_MIN = 0.90; // Stage 2: context-first short zone (deep upper range)
+const RSI_BUY_CONFIRM_MAX  = 45;   // Stage 2: reversal confirmation for deep-long context
+const RSI_SELL_CONFIRM_MIN = 55;   // Stage 2: reversal confirmation for deep-short context
 
 // ─── Optional param overrides (optimizer only) ───────────────────────────────
 // Live pipeline may pass this argument to tune entry filters.
@@ -44,6 +48,11 @@ export interface RangeSignalParams {
   // Stage 1: production range-location zones
   rangeLongMax?:           number;   // longs allowed only if loc <= this (default 0.20)
   rangeShortMin?:          number;   // shorts allowed only if loc >= this (default 0.80)
+  // Stage 2: context-first confirmation zones/levels
+  rangeDeepLongMax?:       number;   // deep-long context zone (default 0.10)
+  rangeDeepShortMin?:      number;   // deep-short context zone (default 0.90)
+  rsiBuyConfirmMax?:       number;   // buy confirmation RSI cap in deep-long zone (default 45)
+  rsiSellConfirmMin?:      number;   // sell confirmation RSI floor in deep-short zone (default 55)
 }
 
 // ─── Router context (Phase 7B) ───────────────────────────────────────────────
@@ -66,7 +75,7 @@ export type RangeRejectionReason =
   | 'missing_range_location'
   | 'range_location_blocks_long'
   | 'range_location_blocks_short'
-  | 'rsi_not_extreme'
+  | 'rsi_not_confirmed'
   | null;
 
 export interface RangeSignalDiagnostic {
@@ -74,6 +83,7 @@ export interface RangeSignalDiagnostic {
   rejectionReason: RangeRejectionReason;
   rangeLocation: number | null;
   signalType: 'buy' | 'sell' | null;
+  triggerMode: 'rsi_extreme' | 'context_confirmed' | null;
 }
 
 // ─── Public API ──────────────────────────────────────────────────────────────
@@ -101,95 +111,124 @@ export function generateRangeSignalWithDiagnostic(
   const newsRiskFlag  = state.newsRiskFlag ?? false;
 
   // Resolve thresholds — params override defaults
-  const rsiOversold    = params?.rsiOversold    ?? RSI_OVERSOLD;
-  const rsiOverbought  = params?.rsiOverbought  ?? RSI_OVERBOUGHT;
-  const breakoutMargin = params?.breakoutMargin ?? BREAKOUT_MARGIN;
-  const rangeLongMax   = params?.rangeLongMax   ?? RANGE_LONG_MAX;
-  const rangeShortMin  = params?.rangeShortMin  ?? RANGE_SHORT_MIN;
+  const rsiOversold       = params?.rsiOversold       ?? RSI_OVERSOLD;
+  const rsiOverbought     = params?.rsiOverbought     ?? RSI_OVERBOUGHT;
+  const breakoutMargin    = params?.breakoutMargin    ?? BREAKOUT_MARGIN;
+  const rangeLongMax      = params?.rangeLongMax      ?? RANGE_LONG_MAX;
+  const rangeShortMin     = params?.rangeShortMin     ?? RANGE_SHORT_MIN;
+  const rangeDeepLongMax  = params?.rangeDeepLongMax  ?? RANGE_DEEP_LONG_MAX;
+  const rangeDeepShortMin = params?.rangeDeepShortMin ?? RANGE_DEEP_SHORT_MIN;
+  const rsiBuyConfirmMax  = params?.rsiBuyConfirmMax  ?? RSI_BUY_CONFIRM_MAX;
+  const rsiSellConfirmMin = params?.rsiSellConfirmMin ?? RSI_SELL_CONFIRM_MIN;
+
+  const reject = (
+    reason: RangeRejectionReason,
+    signalType: 'buy' | 'sell' | null = null,
+    loc: number | null = ctx?.rangeLocation ?? null,
+  ): RangeSignalDiagnostic => ({
+    signal: null,
+    rejectionReason: reason,
+    rangeLocation: loc,
+    signalType,
+    triggerMode: null,
+  });
 
   // ── Guard: indicators must be warm ──────────────────────────────────────
   if (!state.indicatorsWarm) {
-    return { signal: null, rejectionReason: 'indicators_cold', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('indicators_cold');
   }
 
   // ── Guard: must have RSI ─────────────────────────────────────────────────
   if (rsi14 === null) {
-    return { signal: null, rejectionReason: 'missing_rsi', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('missing_rsi');
   }
 
   // ── Guard: must have a reference EMA ────────────────────────────────────
   const refEma = ema50 ?? ema20;
   if (refEma === null) {
-    return { signal: null, rejectionReason: 'missing_reference_ema', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('missing_reference_ema');
   }
 
   // ── Guard: news risk active — no range trades ────────────────────────────
   if (newsRiskFlag) {
-    return { signal: null, rejectionReason: 'news_risk_active', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('news_risk_active');
   }
 
   // ── Guard: ADX must confirm weak trend (range) ───────────────────────────
   if (adx14 !== null && adx14 >= ADX_MAX) {
-    return { signal: null, rejectionReason: 'adx_too_high', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('adx_too_high');
   }
 
   // ── Guard: breakout rejection — price must stay near EMA cluster ─────────
   const distFromEma = Math.abs(price - refEma) / price;
   if (distFromEma > breakoutMargin) {
-    return { signal: null, rejectionReason: 'breakout_distance_too_high', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+    return reject('breakout_distance_too_high');
   }
 
   // ── Phase 7B: stale regime gate ─────────────────────────────────────────
   if (ctx !== undefined) {
     const maxAge = params?.maxRegimeAge ?? MAX_REGIME_AGE;
     if (ctx.regimeAge > maxAge) {
-      return { signal: null, rejectionReason: 'regime_too_old', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
+      return reject('regime_too_old');
     }
-  }
-
-  // ── RSI extreme entry ────────────────────────────────────────────────────
-  let signalType: 'buy' | 'sell' | null = null;
-
-  if (rsi14 <= rsiOversold) {
-    signalType = 'buy';
-  } else if (rsi14 >= rsiOverbought) {
-    signalType = 'sell';
-  }
-
-  if (!signalType) {
-    return { signal: null, rejectionReason: 'rsi_not_extreme', rangeLocation: ctx?.rangeLocation ?? null, signalType: null };
   }
 
   // ── Stage 1: range location production gate ─────────────────────────────
   if (ctx === undefined || ctx.rangeLocation === null || ctx.rangeLocation === undefined) {
-    return { signal: null, rejectionReason: 'missing_range_location', rangeLocation: null, signalType };
+    return reject('missing_range_location');
   }
 
   const loc = ctx.rangeLocation;
+
+  // ── Stage 2: context-first reversal confirmation ────────────────────────
+  // Path A (legacy discipline): RSI extremes
+  // Path B (new context-first): deep range zone + softer RSI confirmation
+  let signalType: 'buy' | 'sell' | null = null;
+  let triggerMode: 'rsi_extreme' | 'context_confirmed' | null = null;
+
+  if (rsi14 <= rsiOversold) {
+    signalType = 'buy';
+    triggerMode = 'rsi_extreme';
+  } else if (rsi14 >= rsiOverbought) {
+    signalType = 'sell';
+    triggerMode = 'rsi_extreme';
+  } else if (loc <= rangeDeepLongMax && rsi14 <= rsiBuyConfirmMax) {
+    signalType = 'buy';
+    triggerMode = 'context_confirmed';
+  } else if (loc >= rangeDeepShortMin && rsi14 >= rsiSellConfirmMin) {
+    signalType = 'sell';
+    triggerMode = 'context_confirmed';
+  }
+
+  if (!signalType || !triggerMode) {
+    return reject('rsi_not_confirmed');
+  }
+
   if (signalType === 'buy' && loc > rangeLongMax) {
-    return { signal: null, rejectionReason: 'range_location_blocks_long', rangeLocation: loc, signalType };
+    return reject('range_location_blocks_long', signalType, loc);
   }
   if (signalType === 'sell' && loc < rangeShortMin) {
-    return { signal: null, rejectionReason: 'range_location_blocks_short', rangeLocation: loc, signalType };
+    return reject('range_location_blocks_short', signalType, loc);
   }
 
   // ── Signal ───────────────────────────────────────────────────────────────
   const emaLabel = ema50 !== null ? 'EMA50' : 'EMA20';
-  const direction = signalType === 'buy' ? 'oversold' : 'overbought';
+  const direction = signalType === 'buy' ? 'long-mean-reversion' : 'short-mean-reversion';
   const locInfo = `, loc=${loc.toFixed(2)}`;
   const ageInfo = ctx !== undefined ? `, age=${ctx.regimeAge}` : '';
+  const triggerInfo = triggerMode === 'rsi_extreme' ? 'RSI-extreme' : 'context-confirmed';
 
   const signal: TradeSignal = {
     source:     'regime-strategy-router',
     symbol:     state.symbol,
     signalType,
     confidence: analysis.confidence,
-    rationale:  `RANGE: RSI ${direction} (${rsi14.toFixed(1)}), price within ${(distFromEma * 100).toFixed(2)}% of ${emaLabel}${adx14 !== null ? `, ADX=${adx14.toFixed(1)}` : ''}${locInfo}${ageInfo}`,
+    rationale:  `RANGE: ${direction}, ${triggerInfo}, RSI=${rsi14.toFixed(1)}, price within ${(distFromEma * 100).toFixed(2)}% of ${emaLabel}${adx14 !== null ? `, ADX=${adx14.toFixed(1)}` : ''}${locInfo}${ageInfo}`,
     timestamp:  new Date().toISOString(),
     strategyId: 'regime-range',
     variantId:  'range-v1',
     baseState:  state,
   };
 
-  return { signal, rejectionReason: null, rangeLocation: loc, signalType };
+  return { signal, rejectionReason: null, rangeLocation: loc, signalType, triggerMode };
 }
