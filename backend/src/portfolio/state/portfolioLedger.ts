@@ -184,6 +184,15 @@ function deriveProtectiveLevels(exec: ExecutionResult | undefined, price: number
   return { stopLoss, takeProfit, tp1, tp2, rMultiple };
 }
 
+function recomputeEquity(book: LedgerBook) {
+  book.equity = book.balance + Object.values(book.positions).reduce((eq, p) => {
+    if (p.qty === 0) return eq;
+    const mark = Number(p.markPrice ?? p.avgEntry ?? 0);
+    if (!Number.isFinite(mark) || mark <= 0) return eq;
+    return eq + (p.qty * mark);
+  }, 0);
+}
+
 function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition: string, signedQty: number, price: number, variantId?: string | null, exec?: ExecutionResult) {
   if (!book.positions[positionKey]) book.positions[positionKey] = newPosition(symbolForPosition, variantId, price);
   const pos = book.positions[positionKey];
@@ -191,7 +200,7 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
   if (pos.qty === 0) {
     pos.qty = signedQty;
     pos.avgEntry = price;
-    if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
+    book.balance -= price * signedQty;
     pos.markPrice = price;
     const protection = deriveProtectiveLevels(exec, price, signedQty >= 0 ? 'buy' : 'sell');
     pos.stopLoss = protection.stopLoss;
@@ -225,7 +234,7 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
   } else {
     pos.avgEntry = (pos.avgEntry * Math.abs(pos.qty) + price * Math.abs(signedQty)) / (Math.abs(pos.qty + signedQty));
     pos.qty += signedQty;
-    if (signedQty > 0) book.balance -= price * Math.abs(signedQty);
+    book.balance -= price * signedQty;
     pos.markPrice = price;
     // On same-direction adds, ensure protective levels are present even if upstream omitted them.
     if ((signedQty > 0 && pos.qty > 0) || (signedQty < 0 && pos.qty < 0)) {
@@ -245,12 +254,7 @@ function applyExecution(book: LedgerBook, positionKey: string, symbolForPosition
     while (book.trades.length > 500) book.trades.shift();
   }
 
-  book.equity = book.balance + Object.values(book.positions).reduce((eq, p) => {
-    if (p.qty === 0) return eq;
-    if (p.qty > 0) eq += p.qty * price;
-    else eq += Math.abs(p.qty) * (p.avgEntry - price);
-    return eq;
-  }, 0);
+  recomputeEquity(book);
 }
 
 // Update mark price for all positions with the given symbol.
@@ -390,11 +394,48 @@ export function partialClosePosition(
   globalBook.trades.push(tradeEntry);
   while (globalBook.trades.length > 500) globalBook.trades.shift();
 
+  // Mirror partial close into variant book if present
+  const vKey = pos.variantId || 'default';
+  if (variantBooks[vKey]) {
+    const vBook = variantBooks[vKey];
+    for (const vPos of Object.values(vBook.positions)) {
+      if (vPos.symbol !== pos.symbol || vPos.qty === 0) continue;
+
+      const vSafeClose = Math.min(safeClose, Math.abs(vPos.qty));
+      const vSignedClose = vPos.qty > 0 ? vSafeClose : -vSafeClose;
+      const vPnl = (closePrice - vPos.avgEntry) * Math.abs(vSignedClose) * Math.sign(vPos.qty);
+
+      vBook.realizedPnL += vPnl;
+      vBook.balance += closePrice * vSafeClose * (vPos.qty > 0 ? 1 : -1);
+      vPos.qty -= vSignedClose;
+
+      if (vPos.qty === 0) {
+        vPos.side = 'flat';
+        vPos.stopLoss = null;
+        vPos.takeProfit = null;
+        vPos.tp1 = null;
+        vPos.tp2 = null;
+        vPos.tp1Hit = false;
+        vPos.trailingStopPrice = null;
+        vPos.rMultiple = null;
+        vPos.avgEntry = 0;
+        vPos.markPrice = closePrice;
+        vPos.unrealizedPnL = 0;
+      } else {
+        vPos.tp1Hit = true;
+        vPos.tp1 = null;
+        vPos.markPrice = closePrice;
+        vPos.unrealizedPnL = (closePrice - vPos.avgEntry) * vPos.qty;
+      }
+
+      vPos.lastUpdated = new Date().toISOString();
+      break;
+    }
+    recomputeEquity(vBook);
+  }
+
   // Update equity
-  globalBook.equity = globalBook.balance + Object.values(globalBook.positions).reduce((eq, p) => {
-    if (p.qty === 0 || p.markPrice === null) return eq;
-    return eq + (p.qty > 0 ? p.qty * closePrice : Math.abs(p.qty) * (p.avgEntry - closePrice));
-  }, 0);
+  recomputeEquity(globalBook);
 
   persistState();
   return pnl;
@@ -455,12 +496,10 @@ export function forceClosePosition(positionKey: string, closePrice: number, reas
         vPos.lastUpdated = new Date().toISOString();
       }
     }
+    recomputeEquity(vBook);
   }
 
-  globalBook.equity = globalBook.balance + Object.values(globalBook.positions).reduce((eq, p) => {
-    if (p.qty === 0 || p.markPrice === null) return eq;
-    return eq + (p.qty > 0 ? p.qty * closePrice : Math.abs(p.qty) * (p.avgEntry - closePrice));
-  }, 0);
+  recomputeEquity(globalBook);
 
   // Append to book.trades so monitor-triggered closes appear in frontend trade history,
   // consistent with normal closes via applyExecution(). PnL/balance accounting is unchanged.
