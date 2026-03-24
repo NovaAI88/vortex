@@ -3,6 +3,8 @@ import { TradeSignal } from '../../models/TradeSignal';
 import { ActionCandidate } from '../../models/ActionCandidate';
 
 const DUPLICATE_WINDOW_MS = 5000;
+const VALIDATION_MODE = process.env.VORTEX_TREND_VALIDATION_MODE === 'true';
+const MIN_CONFIDENCE = VALIDATION_MODE ? Number(process.env.VORTEX_VALIDATION_MIN_CONFIDENCE ?? 0.2) : 0.7;
 const lastActionByKey = new Map<string, { ts: number; price: number | null }>();
 
 export function basicSignalEvaluator(signal: TradeSignal): ActionCandidate | null {

@@ -49,6 +49,8 @@ export interface FeatureSnapshot {
 // Minimum candles for primary indicators to be valid
 const WARM_THRESHOLD = 50; // covers EMA20, ATR14, RSI14, ADX14 (28 min)
 const VOLATILITY_CLAMP = 0.05; // ATR/price above this is treated as max volatility
+const FLOW_DEBUG = process.env.VORTEX_FLOW_DEBUG === 'true';
+let featureCandleCloseCount = 0;
 
 let snapshot: FeatureSnapshot = {
   timestamp: '',
@@ -121,7 +123,33 @@ export function getSnapshot(): FeatureSnapshot {
 export function startFeaturePipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.CANDLE_CLOSE_1M, _envelope => {
     try {
+      featureCandleCloseCount++;
+      if (FLOW_DEBUG) {
+        const snap = getSnapshot();
+        console.log('[FLOW feature.candle_close_1m]', {
+          count: featureCandleCloseCount,
+          candleCount: snap.candleCount,
+          indicatorsWarm: snap.indicatorsWarm,
+          lastClose: snap.lastClose,
+          timestamp: snap.timestamp,
+        });
+      }
       recompute();
+      if (FLOW_DEBUG) {
+        const snap = getSnapshot();
+        console.log('[FLOW feature.recompute_done]', {
+          count: featureCandleCloseCount,
+          candleCount: snap.candleCount,
+          indicatorsWarm: snap.indicatorsWarm,
+          ema20: snap.ema20,
+          ema50: snap.ema50,
+          ema200: snap.ema200,
+          adx14: snap.adx14,
+          rsi14: snap.rsi14,
+          lastClose: snap.lastClose,
+          timestamp: snap.timestamp,
+        });
+      }
     } catch (e) {
       logger.error('featurePipeline', 'Error recomputing indicators', { err: String(e) });
     }

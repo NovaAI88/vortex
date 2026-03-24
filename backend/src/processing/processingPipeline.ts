@@ -6,9 +6,22 @@ import { enrichMarketEvent } from './enrichers/basicEnricher';
 import { publishProcessedMarketState } from './publishers/processedStatePublisher';
 import { processTick } from '../ingestion/candles/candleAggregator';
 
+const FLOW_DEBUG = process.env.VORTEX_FLOW_DEBUG === 'true';
+let processingSeenCount = 0;
+let processingPublishedCount = 0;
+
 export function startProcessingPipeline(bus: EventBus): void {
   bus.subscribe(EVENT_TOPICS.MARKET_EVENT, envelope => {
     const evt = envelope.payload;
+    if (FLOW_DEBUG) {
+      processingSeenCount++;
+      console.log('[FLOW processing.market_event]', {
+        seen: processingSeenCount,
+        symbol: evt?.symbol,
+        price: evt?.price,
+        timestamp: evt?.timestamp,
+      });
+    }
     if (isValidMarketEvent(evt)) {
       // Phase 1: feed tick into candle aggregator (side-channel, non-blocking)
       try {
@@ -35,6 +48,16 @@ export function startProcessingPipeline(bus: EventBus): void {
         });
       } catch(e) { /* silent fallback, just bridges best effort */ }
       publishProcessedMarketState(bus, state, "processing", envelope.correlationId);
+    if (FLOW_DEBUG) {
+      processingPublishedCount++;
+      console.log('[FLOW processing.publish_processing_state]', {
+        published: processingPublishedCount,
+        symbol: state?.symbol,
+        price: state?.price,
+        indicatorsWarm: state?.indicatorsWarm,
+        timestamp: state?.timestamp,
+      });
+    }
     } else {
       // TODO: Log or audit invalid event
     }

@@ -85,7 +85,14 @@ export function startAIAnalysisPipeline(bus: EventBus): void {
       lastPublishedAt = Date.now();
 
       // Publish to bus — downstream can subscribe; execution/risk do NOT
-      bus.publish(EVENT_TOPICS.AI_ANALYSIS, analysis, 'ai-analysis-pipeline');
+      bus.publish(EVENT_TOPICS.AI_ANALYSIS, {
+        id: (Math.random() * 1e17).toString(36),
+        topic: EVENT_TOPICS.AI_ANALYSIS,
+        timestamp: new Date().toISOString(),
+        producer: 'ai-analysis-pipeline',
+        version: '1.0.0',
+        payload: analysis,
+      });
 
       // Log regime changes at info level; routine updates at debug
       if (!lastCommitted || analysis.regime !== lastCommitted?.regime) {

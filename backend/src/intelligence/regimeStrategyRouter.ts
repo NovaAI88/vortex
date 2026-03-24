@@ -30,7 +30,7 @@ import { EventBus } from '../events/eventBus';
 import { EVENT_TOPICS } from '../events/topics';
 import { AIAnalysis } from './aiAnalysisEngine';
 import { ProcessedMarketState } from '../models/ProcessedMarketState';
-import { generateTrendSignal }    from './strategies/trendStrategy';
+import { generateTrendSignal, generateTrendSignalWithDiagnostic }    from './strategies/trendStrategy';
 import { generateRangeSignal, RangeRouterContext }    from './strategies/rangeStrategy';
 import { generateHighRiskSignal } from './strategies/highRiskStrategy';
 import { publishTradeSignal }     from './publishers/tradeSignalPublisher';
@@ -43,6 +43,8 @@ import { logger } from '../utils/logger';
 // Read lazily (at call time) so test environments can set the env var after module load.
 
 const isTrendEnabled = (): boolean => process.env.ENABLE_TREND === 'true';
+const FLOW_DEBUG = process.env.VORTEX_FLOW_DEBUG === 'true';
+const TREND_VALIDATION_MODE = process.env.VORTEX_TREND_VALIDATION_MODE === 'true';
 
 // ─── Router state ────────────────────────────────────────────────────────────
 // Single cache of the latest committed AIAnalysis from the AI pipeline.
@@ -80,6 +82,9 @@ interface PendingRangeSignal {
 }
 let pendingRangeSignal: PendingRangeSignal | null = null;
 let tickIndex = 0;  // increments on every PROCESSING_STATE event
+let routerProcessingSeenCount = 0;
+
+const SIGNAL_DEBUG = process.env.VORTEX_SIGNAL_DEBUG === 'true';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
@@ -112,6 +117,22 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
   // ── Step 2: On each market tick, route to active strategy ────────────────
   bus.subscribe(EVENT_TOPICS.PROCESSING_STATE, envelope => {
     try {
+      routerProcessingSeenCount++;
+      if (FLOW_DEBUG) {
+        const st = envelope.payload as any;
+        console.log('[FLOW router.processing_state_callback]', {
+          seen: routerProcessingSeenCount,
+          hasLatestAnalysis: !!latestAnalysis,
+          analysisRegime: latestAnalysis?.regime ?? null,
+          analysisBias: latestAnalysis?.bias ?? null,
+          analysisConfidence: latestAnalysis?.confidence ?? null,
+          symbol: st?.symbol ?? null,
+          price: st?.price ?? null,
+          indicatorsWarm: st?.indicatorsWarm ?? null,
+          timestamp: st?.timestamp ?? null,
+        });
+      }
+
       // Skip if no regime has been established yet
       if (!latestAnalysis) return;
 
@@ -146,6 +167,13 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
       // Build RangeRouterContext from router state — strategy is read-only
       const rangeCtx = buildRangeContext(state.price, regimeAge);
 
+      const trendValidationParams = TREND_VALIDATION_MODE ? {
+        pullbackMin: 0,
+        pullbackMax: 0.02,
+        pullbackDirectionTolerance: 0.02,
+        minRegimeAge: 1,
+      } : undefined;
+
       // Route to strategy — pure function, no side effects except return value
       let signal = null;
 
@@ -154,7 +182,44 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
           // ENABLE_TREND=false → suppress all TREND signals without touching strategy logic.
           // Set ENABLE_TREND=true in environment to re-enable.
           if (isTrendEnabled()) {
-            signal = generateTrendSignal(state, analysis, undefined, regimeAge);
+            const trendDiag = generateTrendSignalWithDiagnostic(state, analysis, trendValidationParams, regimeAge);
+            signal = trendDiag.signal;
+            if (SIGNAL_DEBUG) {
+              logger.info('regimeRouter.debug', 'TREND_EVAL', {
+                tick: thisTick,
+                regime: analysis.regime,
+                bias: analysis.bias,
+                confidence: analysis.confidence,
+                regimeAge,
+                indicatorsWarm: state.indicatorsWarm,
+                price: state.price,
+                ema20: state.ema20 ?? null,
+                ema50: state.ema50 ?? null,
+                ema200: state.ema200 ?? null,
+                adx14: state.adx14 ?? null,
+                rsi14: state.rsi14 ?? null,
+                trendGateReason: trendDiag.rejectionReason ?? 'pass',
+                signalEmitted: trendDiag.signal ? true : false,
+                signalType: trendDiag.signal?.signalType ?? null,
+              });
+            }
+          } else if (SIGNAL_DEBUG) {
+            logger.info('regimeRouter.debug', 'TREND_DISABLED', {
+              tick: thisTick,
+              regime: analysis.regime,
+              bias: analysis.bias,
+              confidence: analysis.confidence,
+              regimeAge,
+              indicatorsWarm: state.indicatorsWarm,
+              price: state.price,
+              ema20: state.ema20 ?? null,
+              ema50: state.ema50 ?? null,
+              ema200: state.ema200 ?? null,
+              adx14: state.adx14 ?? null,
+              rsi14: state.rsi14 ?? null,
+              trendGateReason: 'trend_disabled_flag',
+              signalEmitted: false,
+            });
           }
           pendingRangeSignal = null;
           break;
