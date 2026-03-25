@@ -36,6 +36,7 @@ import { generateHighRiskSignal } from './strategies/highRiskStrategy';
 import { publishTradeSignal }     from './publishers/tradeSignalPublisher';
 import { logSignal }              from './state/signalState';
 import { logger } from '../utils/logger';
+import { trackSignal, updateSignalOutcomesForTick } from '../performance/signalOutcomeTracker';
 
 // ─── Feature flags ───────────────────────────────────────────────────────────
 // ENABLE_TREND: set to 'true' to allow TREND signals. Default OFF for Phase 7B
@@ -155,6 +156,12 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
       const state    = envelope.payload as ProcessedMarketState;
       const analysis = latestAnalysis;
       const thisTick = tickIndex++;
+
+      updateSignalOutcomesForTick({
+        symbol: state.symbol,
+        price: state.price,
+        tickIndex: thisTick,
+      });
 
       // ── Phase 7B: regime age tracking ───────────────────────────────────
       if (currentRegime === null) {
@@ -313,9 +320,14 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
       // Only publish if strategy produced a confirmed signal
       if (!signal) return;
 
+      const baseSignalId = typeof (signal as any).id === 'string' && (signal as any).id.trim().length > 0
+        ? (signal as any).id.trim()
+        : `${signal.timestamp}:${signal.source}:${signal.strategyId}:${signal.symbol}:${thisTick}`;
+
       const signalForPublish = rangeSignalMeta
         ? {
             ...signal,
+            id: baseSignalId,
             rationale: `${signal.rationale} | triggerMode=${rangeSignalMeta.triggerMode ?? 'null'}`,
             // Temporary router-level confidence separation for observability only.
             // NOT a calibrated expectancy score.
@@ -326,7 +338,32 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
             rsi14AtSignal: rangeSignalMeta.rsi14AtSignal,
             rangeLocationAtSignal: rangeSignalMeta.rangeLocationAtSignal,
           }
-        : signal;
+        : {
+            ...signal,
+            id: baseSignalId,
+          };
+
+      const signalId = (signalForPublish as any).id;
+      if (typeof signalId !== 'string' || signalId.trim().length === 0) {
+        throw new Error('regimeRouter tracking requires emitted TradeSignal.id as non-empty string');
+      }
+
+      const entryPrice = signalForPublish?.baseState?.price;
+      if (!Number.isFinite(entryPrice)) {
+        throw new Error(`regimeRouter tracking requires finite entryPrice from emitted signal baseState.price (signalId=${signalId})`);
+      }
+
+      trackSignal({
+        signalId,
+        symbol: signalForPublish.symbol,
+        side: signalForPublish.signalType as 'buy' | 'sell',
+        entryPrice,
+        entryTick: thisTick,
+        triggerMode: (signalForPublish as any).triggerMode ?? null,
+        confidence: signalForPublish.confidence,
+        rsi14AtSignal: (signalForPublish as any).rsi14AtSignal ?? null,
+        rangeLocationAtSignal: (signalForPublish as any).rangeLocationAtSignal ?? null,
+      });
 
       // Log to in-memory signal store (for /api/signals endpoint)
       logSignal(signalForPublish);
