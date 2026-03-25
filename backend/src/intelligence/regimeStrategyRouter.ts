@@ -88,6 +88,22 @@ const SIGNAL_DEBUG = process.env.VORTEX_SIGNAL_DEBUG === 'true';
 
 // ─── Public API ──────────────────────────────────────────────────────────────
 
+export function resetRouterStateForTesting(): void {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('resetRouterStateForTesting is test-only and requires NODE_ENV=test');
+  }
+
+  latestAnalysis = null;
+  currentRegime = null;
+  regimeAge = 0;
+  priceWindow.length = 0;
+  highWindow = [];
+  lowWindow = [];
+  pendingRangeSignal = null;
+  tickIndex = 0;
+  routerProcessingSeenCount = 0;
+}
+
 export function startRegimeStrategyRouter(bus: EventBus): void {
   // ── Step 1: Cache AI analysis as it arrives ──────────────────────────────
   bus.subscribe(EVENT_TOPICS.AI_ANALYSIS, envelope => {
@@ -176,6 +192,11 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
 
       // Route to strategy — pure function, no side effects except return value
       let signal = null;
+      let rangeSignalMeta: {
+        triggerMode: 'rsi_extreme' | 'context_confirmed' | null;
+        rsi14AtSignal: number | null;
+        rangeLocationAtSignal: number | null;
+      } | null = null;
 
       switch (analysis.regime) {
         case 'TREND':
@@ -261,6 +282,11 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
             ) {
               // Confirmed — emit and clear pending
               signal = candidateSignal;
+              rangeSignalMeta = {
+                triggerMode: rangeDiag.triggerMode ?? null,
+                rsi14AtSignal: state.rsi14 ?? null,
+                rangeLocationAtSignal: rangeDiag.rangeLocation ?? null,
+              };
               pendingRangeSignal = null;
             } else {
               // First occurrence — hold as pending, do not emit yet
@@ -287,16 +313,31 @@ export function startRegimeStrategyRouter(bus: EventBus): void {
       // Only publish if strategy produced a confirmed signal
       if (!signal) return;
 
+      const signalForPublish = rangeSignalMeta
+        ? {
+            ...signal,
+            rationale: `${signal.rationale} | triggerMode=${rangeSignalMeta.triggerMode ?? 'null'}`,
+            // Temporary router-level confidence separation for observability only.
+            // NOT a calibrated expectancy score.
+            confidence: rangeSignalMeta.triggerMode === 'context_confirmed'
+              ? Number((analysis.confidence * 0.8).toFixed(4))
+              : analysis.confidence,
+            triggerMode: rangeSignalMeta.triggerMode,
+            rsi14AtSignal: rangeSignalMeta.rsi14AtSignal,
+            rangeLocationAtSignal: rangeSignalMeta.rangeLocationAtSignal,
+          }
+        : signal;
+
       // Log to in-memory signal store (for /api/signals endpoint)
-      logSignal(signal);
+      logSignal(signalForPublish);
 
       // Publish into the existing pipeline — decision → risk → execution
-      publishTradeSignal(bus, signal, 'regime-router', envelope.correlationId);
+      publishTradeSignal(bus, signalForPublish, 'regime-router', envelope.correlationId);
 
-      logger.debug('regimeRouter', `Signal: ${signal.signalType.toUpperCase()} via ${signal.strategyId}`, {
-        symbol:     signal.symbol,
-        confidence: signal.confidence,
-        strategyId: signal.strategyId,
+      logger.debug('regimeRouter', `Signal: ${signalForPublish.signalType.toUpperCase()} via ${signalForPublish.strategyId}`, {
+        symbol:     signalForPublish.symbol,
+        confidence: signalForPublish.confidence,
+        strategyId: signalForPublish.strategyId,
         regime:     analysis.regime,
         regimeAge,
       });

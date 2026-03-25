@@ -36,6 +36,20 @@ const RANGE_DEEP_SHORT_MIN = 0.90; // Stage 2: context-first short zone (deep up
 const RSI_BUY_CONFIRM_MAX  = 45;   // Stage 2: reversal confirmation for deep-long context
 const RSI_SELL_CONFIRM_MIN = 55;   // Stage 2: reversal confirmation for deep-short context
 
+export const RANGE_SIGNAL_THRESHOLDS = {
+  ADX_MAX,
+  RSI_OVERSOLD,
+  RSI_OVERBOUGHT,
+  BREAKOUT_MARGIN,
+  MAX_REGIME_AGE,
+  RANGE_LONG_MAX,
+  RANGE_SHORT_MIN,
+  RANGE_DEEP_LONG_MAX,
+  RANGE_DEEP_SHORT_MIN,
+  RSI_BUY_CONFIRM_MAX,
+  RSI_SELL_CONFIRM_MIN,
+} as const;
+
 // ─── Optional param overrides (optimizer only) ───────────────────────────────
 // Live pipeline may pass this argument to tune entry filters.
 

@@ -161,4 +161,22 @@ describe('rangeStrategy Phase 2 deterministic behavior', () => {
     expect(res.signal).toBeNull();
     expect(res.rejectionReason).toBe('news_risk_active');
   });
+
+  it('11) context_confirmed does NOT fire at RSI 46 (buy side guard)', () => {
+    const state = makeState({ rsi14: 46 });
+    const analysis = makeAnalysis();
+    const res = generateRangeSignalWithDiagnostic(state, analysis, undefined, makeCtx({ rangeLocation: 0.08 }));
+
+    expect(res.signal).toBeNull();
+    expect(res.rejectionReason).toBe('rsi_not_confirmed');
+  });
+
+  it('12) context_confirmed sell does NOT fire at RSI 54 (sell side guard)', () => {
+    const state = makeState({ rsi14: 54 });
+    const analysis = makeAnalysis();
+    const res = generateRangeSignalWithDiagnostic(state, analysis, undefined, makeCtx({ rangeLocation: 0.92 }));
+
+    expect(res.signal).toBeNull();
+    expect(res.rejectionReason).toBe('rsi_not_confirmed');
+  });
 });

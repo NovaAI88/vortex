@@ -9,4 +9,7 @@ export interface TradeSignal {
   strategyId: string;
   variantId?: string;
   baseState: any; // ProcessedMarketState reference
+  triggerMode?: 'rsi_extreme' | 'context_confirmed' | null;
+  rangeLocationAtSignal?: number | null;
+  rsi14AtSignal?: number | null;
 }
