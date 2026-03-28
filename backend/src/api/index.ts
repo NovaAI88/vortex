@@ -12,6 +12,7 @@ import alertsRouter from './alerts';
 import operatorRouter from '../operator/operatorRoutes';
 import runtimeRouter from './runtime';
 import pipelineRouter from './pipeline';
+import performanceRouter from './performance';
 const app = express();
 app.use(express.json());
 
@@ -39,6 +40,7 @@ app.use('/api', alertsRouter);
 app.use('/api', operatorRouter);
 app.use('/api', runtimeRouter);
 app.use('/api', pipelineRouter);
+app.use('/api', performanceRouter);
 import strategiesRouter from './strategies';
 app.use('/api', strategiesRouter);
 
