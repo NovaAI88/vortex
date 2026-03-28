@@ -30,6 +30,11 @@ import { buildReplayStates } from '../backtest/historicalFeatureBuilder';
 import { runSimulation } from '../backtest/backtestSimulator';
 import { analyzeEntryQuality, analyzeTrendSuppression } from '../backtest/entryQualityAnalyzer';
 import { buildRegimeStabilityReport } from '../backtest/regimeStabilityReport';
+import {
+  getSignalMetrics,
+  getActiveSignalTracks,
+  getCompletedSignalTracks,
+} from '../performance/signalOutcomeTracker';
 
 const router = express.Router();
 
@@ -166,6 +171,78 @@ router.get('/trend-suppression', async (req, res) => {
       },
       totalCandlesReplayed: states.length,
       report,
+    });
+
+  } catch (err: any) {
+    res.status(500).json({ error: String(err?.message ?? err) });
+  }
+});
+
+// ─── GET /api/diagnosis/signal-performance ───────────────────────────────
+// Returns unified signal tracking metrics, active/completed tracks, and a
+// summary with dominant mode, best-performing mode, and a recommendation.
+
+router.get('/signal-performance', (_req, res) => {
+  try {
+    const signalMetrics = getSignalMetrics();
+    const activeTracks  = getActiveSignalTracks();
+    const allCompleted  = getCompletedSignalTracks();
+    const recentCompleted = allCompleted.slice(-10);
+
+    const completed = signalMetrics.totals.completed;
+
+    // ── Dominant trigger mode (most completed signals) ───────────────────
+    const modes = ['rsi_extreme', 'context_confirmed', 'unknown'] as const;
+    type KnownMode = typeof modes[number];
+
+    let dominantTriggerMode: KnownMode | 'none' = 'none';
+    if (completed > 0) {
+      let maxCompleted = -1;
+      for (const mode of modes) {
+        if (signalMetrics.byTriggerMode[mode].completed > maxCompleted) {
+          maxCompleted = signalMetrics.byTriggerMode[mode].completed;
+          dominantTriggerMode = mode;
+        }
+      }
+    }
+
+    // ── Best-performing trigger mode (highest successRate) ───────────────
+    let bestPerformingMode: KnownMode | 'none' = 'none';
+    if (completed > 0) {
+      let bestRate = -1;
+      for (const mode of modes) {
+        if (signalMetrics.byTriggerMode[mode].successRate > bestRate) {
+          bestRate = signalMetrics.byTriggerMode[mode].successRate;
+          bestPerformingMode = mode;
+        }
+      }
+    }
+
+    // ── Recommendation ────────────────────────────────────────────────────
+    let recommendation: string;
+    if (completed < 5) {
+      recommendation = 'Not enough data yet — run paper trading session first';
+    } else {
+      const rsiRate = signalMetrics.byTriggerMode.rsi_extreme.successRate;
+      const ctxRate = signalMetrics.byTriggerMode.context_confirmed.successRate;
+      if (rsiRate - ctxRate > 0.10) {
+        recommendation = 'Consider tightening context_confirmed thresholds';
+      } else if (ctxRate - rsiRate > 0.10) {
+        recommendation = 'context_confirmed outperforming — consider widening its entry zone';
+      } else {
+        recommendation = 'Performance balanced across trigger modes';
+      }
+    }
+
+    res.json({
+      signalMetrics,
+      activeTracks,
+      recentCompleted,
+      summary: {
+        dominantTriggerMode,
+        bestPerformingMode,
+        recommendation,
+      },
     });
 
   } catch (err: any) {

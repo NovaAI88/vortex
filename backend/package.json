@@ -5,7 +5,8 @@
   "scripts": {
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check-signals": "npx ts-node scripts/check-signal-rate.ts"
   },
   "dependencies": {
     "express": "^4.21.2"
