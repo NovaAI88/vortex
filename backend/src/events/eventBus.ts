@@ -1,4 +1,4 @@
-// Central event bus interface and in-memory implementation for AETHER
+// Central event bus interface and in-memory implementation for VORTEX
 import { EventEnvelope } from './eventEnvelope';
 
 type EventHandler<T> = (event: EventEnvelope<T>) => void | Promise<void>;

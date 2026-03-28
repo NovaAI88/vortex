@@ -1,4 +1,4 @@
-# AETHER Paper Trading Validation
+# VORTEX Paper Trading Validation
 
 ## How to Run
 
@@ -8,7 +8,7 @@
 
 ## What it Does
 
-- Injects a fixed deterministic event stream (see test) through the full AETHER pipeline: Ingestion → Processing → Intelligence → Decision → Risk → Execution → Portfolio
+- Injects a fixed deterministic event stream (see test) through the full VORTEX pipeline: Ingestion → Processing → Intelligence → Decision → Risk → Execution → Portfolio
 - Validates correct propagation, duplication guards, and event lineage at every architectural boundary
 - Verifies event emissions for PositionSnapshot, PortfolioSnapshot, ExecutionResult as expected
 

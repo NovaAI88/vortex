@@ -1,8 +1,8 @@
-# AETHER System Architecture
+# VORTEX System Architecture
 
 ## Introduction
 
-AETHER is designed as a modular, layered platform for real-time trading intelligence and execution. Its architecture follows clear boundaries between ingestion, processing, AI, decision, risk, and presentation to prevent chaotic development and ensure long-term maintainability.
+VORTEX is designed as a modular, layered platform for real-time trading intelligence and execution. Its architecture follows clear boundaries between ingestion, processing, AI, decision, risk, and presentation to prevent chaotic development and ensure long-term maintainability.
 
 ## Layered Architecture Overview
 

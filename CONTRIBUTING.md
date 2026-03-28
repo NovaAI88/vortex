@@ -1,6 +1,6 @@
-# Contributing to AETHER
+# Contributing to VORTEX
 
-We welcome contributions that improve the AETHER project!
+We welcome contributions that improve the VORTEX project!
 
 ## Getting Started
 - Fork the repo, create a feature branch from `main`

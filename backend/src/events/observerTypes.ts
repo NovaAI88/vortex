@@ -1,4 +1,4 @@
-// Observer and read-only hook typings for the AETHER event bus
+// Observer and read-only hook typings for the VORTEX event bus
 
 // All observer (audit, logging, metrics) handlers must be pure and side-effect free.
 export type ObserverHandler<T> = (event: import('./eventEnvelope').EventEnvelope<T>) => void | Promise<void>;

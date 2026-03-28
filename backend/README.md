@@ -1,4 +1,4 @@
-# AETHER Backend
+# VORTEX Backend
 
 ## Key Endpoints
 - /api/status: Returns system status/health

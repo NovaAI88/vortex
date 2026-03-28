@@ -1,4 +1,4 @@
-// Canonical MarketEvent domain model for AETHER
+// Canonical MarketEvent domain model for VORTEX
 
 export interface MarketEvent {
   exchange: string;

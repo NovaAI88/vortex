@@ -1,4 +1,4 @@
-// Mock data source connector for AETHER ingestion pipeline
+// Mock data source connector for VORTEX ingestion pipeline
 import { MarketEvent } from '../../models/MarketEvent';
 
 export function getMockRawPayload() {

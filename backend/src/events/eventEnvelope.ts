@@ -1,4 +1,4 @@
-// Canonical event envelope for all AETHER events
+// Canonical event envelope for all VORTEX events
 export interface EventEnvelope<T> {
   id: string;
   topic: string;

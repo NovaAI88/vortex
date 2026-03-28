@@ -1,4 +1,4 @@
-// Strategy registry for AETHER intelligence layer
+// Strategy registry for VORTEX intelligence layer
 import { ProcessedMarketState } from '../models/ProcessedMarketState';
 import { TradeSignal } from '../models/TradeSignal';
 import { getWeight } from './weighting/strategyWeightEngine';

@@ -1,6 +1,6 @@
 # Events
 
-This folder defines event bus types, interfaces, envelopes, and topic constants for the AETHER Pub/Sub event bus.
+This folder defines event bus types, interfaces, envelopes, and topic constants for the VORTEX Pub/Sub event bus.
 
 Guidelines:
 - Use only for message transport, never business/strategy logic

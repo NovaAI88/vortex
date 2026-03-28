@@ -16,9 +16,9 @@
 - Router workspace issue for nova-codex was fixed by removing the stale local workspace override
 
 ## Confirmed working
-- StepFun can inspect the real AETHER repo
-- DeepSeek can inspect the real AETHER repo
-- Codex can now inspect the real AETHER repo path correctly
+- StepFun can inspect the real VORTEX repo
+- DeepSeek can inspect the real VORTEX repo
+- Codex can now inspect the real VORTEX repo path correctly
 - run-task.sh executes router -> selected agent -> feedback -> stats flow
 
 ## Not yet complete
@@ -46,4 +46,4 @@ Next major work should wait until Codex is available again.
 - improve adaptive routing logic
 - improve critical-code evaluation
 - integrate learning into real routing decisions
-- continue AETHER core implementation tasks
+- continue VORTEX core implementation tasks

@@ -1,4 +1,4 @@
-# AETHER Frontend (Operator Dashboard)
+# VORTEX Frontend (Operator Dashboard)
 
 ## Usage
 - Start: `npm install && npm start`

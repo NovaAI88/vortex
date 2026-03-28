@@ -1,4 +1,4 @@
-// Minimal deterministic backtest engine for AETHER
+// Minimal deterministic backtest engine for VORTEX
 // Uses mock dataset deterministically: buy = +price move, sell = -price move, hold = skip
 import { generateSignals } from '../intelligence/strategyRegistry';
 import { calculateMetrics } from './backtestMetrics';

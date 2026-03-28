@@ -1,6 +1,6 @@
 # Architecture Overview
 
-AETHER is designed as a modular system, separating concerns across core domains:
+VORTEX is designed as a modular system, separating concerns across core domains:
 
 - **Backend:** Serves HTTP APIs, ingests market data, manages user logic
 - **Frontend:** Dynamic dashboard for signal monitoring, user management, and controls

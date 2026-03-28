@@ -1,6 +1,6 @@
 # Infrastructure
 
-This directory contains infrastructure-as-code, deployment scripts, and ops automation for AETHER.
+This directory contains infrastructure-as-code, deployment scripts, and ops automation for VORTEX.
 
 ## Goals
 - Reproducible dev/staging/prod setups

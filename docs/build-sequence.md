@@ -1,4 +1,4 @@
-# AETHER Recommended Build Sequence
+# VORTEX Recommended Build Sequence
 
 ## Introduction
 

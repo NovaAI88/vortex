@@ -1,6 +1,6 @@
-# AETHER
+# VORTEX
 
-AETHER is a modular trading intelligence and automation platform. See `OPERATOR.md` for full run instructions and MVP operator requirements.
+VORTEX is a modular trading intelligence and automation platform. See `OPERATOR.md` for full run instructions and MVP operator requirements.
 
 ## Final Known Limitations (MVP)
 
