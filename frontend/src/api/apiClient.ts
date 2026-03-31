@@ -198,3 +198,15 @@ export async function fetchLegacyStatus() {
   if (!resp.ok) throw new Error('Failed to fetch legacy status');
   return resp.json();
 }
+
+export async function fetchAiAnalysis() {
+  const resp = await fetch(`${API_BASE}/api/ai/analysis`);
+  if (!resp.ok) throw new Error('Failed to fetch AI analysis');
+  return resp.json();
+}
+
+export async function fetchAiResearch() {
+  const resp = await fetch(`${API_BASE}/api/ai/research`);
+  if (!resp.ok) throw new Error('Failed to fetch AI research');
+  return resp.json();
+}

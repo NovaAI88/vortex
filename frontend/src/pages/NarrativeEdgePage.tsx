@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchStatus, fetchSignals, fetchDecisions } from '../api/apiClient';
+import { fetchStatus, fetchSignals, fetchDecisions, fetchAiAnalysis } from '../api/apiClient';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
@@ -9,6 +9,7 @@ const NarrativeEdgePage: React.FC = () => {
   const [status, setStatus] = useState<any>(null);
   const [signals, setSignals] = useState<any[]>([]);
   const [decisions, setDecisions] = useState<any[]>([]);
+  const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,11 +18,12 @@ const NarrativeEdgePage: React.FC = () => {
     const load = async () => {
       setError(null);
       try {
-        const [s, sig, dec] = await Promise.all([fetchStatus(), fetchSignals(), fetchDecisions()]);
+        const [s, sig, dec, an] = await Promise.all([fetchStatus(), fetchSignals(), fetchDecisions(), fetchAiAnalysis().catch(() => null)]);
         if (!mounted) return;
         setStatus(s);
         setSignals(Array.isArray(sig) ? sig.filter(Boolean) : []);
         setDecisions(Array.isArray(dec) ? dec.filter(Boolean) : []);
+        setAnalysis(an && typeof an === 'object' ? an : null);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Backend not connected');
@@ -38,24 +40,41 @@ const NarrativeEdgePage: React.FC = () => {
     <div>
       <PageHeaderBar
         title="Narrative Edge Terminal"
-        subtitle={loading ? 'Loading…' : 'Narrative engine not wired yet; showing only backend telemetry context'}
-        status={error ? 'critical' : 'info'}
-        statusLabel={error ? 'DISCONNECTED' : 'INACTIVE'}
+        subtitle={loading ? 'Loading…' : 'Real AI regime analysis + decision context'}
+        status={error ? 'critical' : analysis?.available ? 'healthy' : 'warning'}
+        statusLabel={error ? 'DISCONNECTED' : analysis?.available ? 'LIVE' : 'WARMING'}
         activeSymbol="NARRATIVE"
         timestamp={status?.timestamp}
       />
 
       <KpiStrip>
-        <KpiCard label="Narrative Feed" value={error ? 'Disconnected' : 'Not connected yet'} tone={error ? 'negative' : 'neutral'} />
+        <KpiCard label="Regime" value={analysis?.regime || 'Unavailable'} tone={analysis?.regime === 'HIGH_RISK' ? 'negative' : 'neutral'} />
+        <KpiCard label="Bias" value={analysis?.bias || 'Unavailable'} />
+        <KpiCard label="Confidence" value={typeof analysis?.confidence === 'number' ? `${(analysis.confidence * 100).toFixed(1)}%` : 'Unavailable'} tone={typeof analysis?.confidence === 'number' && analysis.confidence >= 0.7 ? 'positive' : 'neutral'} />
         <KpiCard label="Signals" value={signals.length} />
         <KpiCard label="Decisions" value={decisions.length} />
       </KpiStrip>
 
-      <SectionCard title="Truthful State">
-        <div style={{ color: '#9cb1d3', fontSize: 13 }}>
-          INACTIVE: backend narrative endpoint is missing (expected something like `/api/narrative`). No fabricated macro stories or synthetic narrative scoring is displayed.
-        </div>
-      </SectionCard>
+      <div className="ui-main-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
+        <SectionCard title="Analysis Snapshot">
+          <div style={{ color: '#c7d6ef', fontSize: 13, lineHeight: 1.6 }}>
+            <div>regime: {analysis?.regime || 'Unavailable'}</div>
+            <div>bias: {analysis?.bias || 'Unavailable'}</div>
+            <div>volatility: {typeof analysis?.volatilityLevel === 'number' ? analysis.volatilityLevel.toFixed(3) : 'Unavailable'}</div>
+            <div>leverage band: {analysis?.leverageBand || 'Unavailable'}</div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Rationale">
+          {Array.isArray(analysis?.rationale) && analysis.rationale.length ? (
+            analysis.rationale.slice(0, 6).map((line: string, idx: number) => (
+              <div key={`${line}-${idx}`} style={{ color: '#c7d6ef', fontSize: 13, marginBottom: 6 }}>{line}</div>
+            ))
+          ) : (
+            <div style={{ color: '#9cb1d3', fontSize: 13 }}>No AI rationale emitted yet.</div>
+          )}
+        </SectionCard>
+      </div>
     </div>
   );
 };

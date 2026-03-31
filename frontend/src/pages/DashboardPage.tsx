@@ -98,7 +98,7 @@ const DashboardPage: React.FC = () => {
   return (
     <div>
       <PageHeaderBar
-        title="AETHER Dashboard"
+        title="VORTEX Dashboard"
         subtitle={loading ? 'Loading…' : 'Real backend account overview'}
         status={error ? 'critical' : status?.status === 'ok' ? 'healthy' : 'warning'}
         statusLabel={runtimeStateLabel}

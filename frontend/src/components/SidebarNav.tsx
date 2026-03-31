@@ -131,8 +131,8 @@ const SidebarNav: React.FC = () => (
     }}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px 12px 8px', borderBottom: '1px solid #213153' }}>
-      <img src={logoMark} alt="AETHER" width={22} height={22} style={{ filter: 'drop-shadow(0 0 8px #57d4ff55)' }} />
-      <span style={{ color: '#9fdfff', fontSize: 12, fontWeight: 800, letterSpacing: '0.09em' }}>AETHER</span>
+      <img src={logoMark} alt="VORTEX" width={22} height={22} style={{ filter: 'drop-shadow(0 0 8px #57d4ff55)' }} />
+      <span style={{ color: '#9fdfff', fontSize: 12, fontWeight: 800, letterSpacing: '0.09em' }}>VORTEX</span>
     </div>
 
     {navGroups.map((group) => (
