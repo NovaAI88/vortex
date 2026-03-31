@@ -58,6 +58,8 @@ app.use('/api', systemRouter);
 
 import aiAnalysisRouter from './aiAnalysis';
 app.use('/api', aiAnalysisRouter);
+import aiResearchRouter from './aiResearch';
+app.use('/api', aiResearchRouter);
 
 import optimizeRouter from './optimize';
 app.use('/api/optimize', optimizeRouter);  // Phase 6 — POST /run, GET /status, GET /results

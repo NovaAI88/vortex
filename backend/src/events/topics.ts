@@ -19,4 +19,6 @@ export const EVENT_TOPICS = {
   CANDLE_CLOSE_15M: 'candle.close.15m',
   // Phase 2: AI regime analysis output (read-only, advisory)
   AI_ANALYSIS: 'ai.analysis',
+  // V2: structured AI research output (read-only, inspectable)
+  AI_RESEARCH: 'ai.research',
 };

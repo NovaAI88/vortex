@@ -22,6 +22,7 @@ import { getCircuitBreakerState } from '../execution/circuitBreaker';
 import { getPortfolio } from '../portfolio/state/portfolioLedger';
 import { getRecentAlerts } from '../alerts/alertStore';
 import { getLastAnalysis } from '../intelligence/aiAnalysisPipeline';
+import { getLastResearch } from '../intelligence/aiResearchPipeline';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ router.get('/system/status', (_req, res) => {
     const portfolio = getPortfolio();
     const alerts   = getRecentAlerts(20);
     const aiAnalysis = getLastAnalysis();
+    const aiResearch = getLastResearch();
 
     // Derive top-level system health
     const tradingAllowed = risk.tradingAllowed && !!operator.tradingEnabled;
@@ -117,6 +119,18 @@ router.get('/system/status', (_req, res) => {
             volatilityLevel:  aiAnalysis.volatilityLevel,
             indicatorsWarm:   aiAnalysis.indicatorsWarm,
             timestamp:        aiAnalysis.timestamp,
+          }
+        : { available: false },
+
+      aiResearch: aiResearch
+        ? {
+            status: aiResearch.status,
+            source: aiResearch.source,
+            recommendedAction: aiResearch.recommendedAction,
+            riskFlags: aiResearch.riskFlags,
+            generatedAt: aiResearch.generatedAt,
+            analysisRegime: aiResearch.attribution.analysisRegime,
+            analysisConfidence: aiResearch.attribution.analysisConfidence,
           }
         : { available: false },
     });

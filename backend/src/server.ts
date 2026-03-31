@@ -6,7 +6,16 @@ const port = process.env.PORT || 3000;
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const allowed = ["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:3001", "http://localhost:3002"];
+  const allowed = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080"
+  ];
   if (origin && allowed.includes(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
   }
@@ -47,6 +56,7 @@ import { seedHistoricalCandles } from './ingestion/candles/candleSeeder';
 import { startFeaturePipeline } from './processing/featurePipeline';
 import { startNewsRiskMonitor } from './processing/newsRiskMonitor';
 import { startAIAnalysisPipeline } from './intelligence/aiAnalysisPipeline';
+import { startAIResearchPipeline } from './intelligence/aiResearchPipeline';
 import { startRegimeStrategyRouter } from './intelligence/regimeStrategyRouter';
 import { logger } from './utils/logger';
 
@@ -66,6 +76,7 @@ seedHistoricalCandles().then(() => {
   startProcessingPipeline(bus);
   startIntelligencePipeline(bus);  // gated OFF by default — regime router is sole signal producer
   startAIAnalysisPipeline(bus);    // must start before regime router (provides AI_ANALYSIS events)
+  startAIResearchPipeline(bus);    // consumes AI_ANALYSIS + PROCESSING_STATE, publishes structured AI_RESEARCH
   startRegimeStrategyRouter(bus);  // Phase 3: sole signal producer
   startDecisionPipeline(bus);
   startRiskPipeline(bus);
@@ -82,6 +93,7 @@ seedHistoricalCandles().then(() => {
   startProcessingPipeline(bus);
   startIntelligencePipeline(bus);  // gated OFF by default — regime router is sole signal producer
   startAIAnalysisPipeline(bus);    // must start before regime router
+  startAIResearchPipeline(bus);    // consumes AI_ANALYSIS + PROCESSING_STATE
   startRegimeStrategyRouter(bus);  // Phase 3: sole signal producer
   startDecisionPipeline(bus);
   startRiskPipeline(bus);

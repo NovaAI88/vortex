@@ -12,6 +12,7 @@ The AI layer (signals, strategy selection, parameter adjustment) is permitted to
 - **Assist strategy selection** — rank or weight strategies via `strategyWeightEngine`
 - **Adjust strategy parameters** — modify signal thresholds and weights within defined bounds
 - **Provide analysis output** — publish enriched market state for UI consumption
+- **Publish structured research output** — advisory `AI_RESEARCH` reports for observability and review
 
 ---
 
