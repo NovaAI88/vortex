@@ -9,7 +9,12 @@
 // then fetch /results.
 
 import express from 'express';
-import { startBacktest, getBacktestState, getBacktestResult } from '../backtest/backtestRunner';
+import {
+  startBacktest,
+  getBacktestState,
+  getBacktestResult,
+  getBacktestPersistenceMeta,
+} from '../backtest/backtestRunner';
 import { BacktestConfig } from '../backtest/backtestTypes';
 import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
 
@@ -112,10 +117,12 @@ router.post('/run', async (req, res) => {
 
 router.get('/status', (_req, res) => {
   const s = getBacktestState();
+  const persistence = getBacktestPersistenceMeta();
   res.json({
     status:   s.status,
     progress: s.progress ?? null,
     error:    s.error    ?? null,
+    persistence,
   });
 });
 

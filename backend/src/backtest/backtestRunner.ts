@@ -21,13 +21,45 @@ import { computeBacktestMetrics } from './backtestMetrics';
 import { analyzeEntryQuality }    from './entryQualityAnalyzer';
 import { BacktestConfig, BacktestState, BacktestResult, DEFAULT_CONFIG, BacktestTrade } from './backtestTypes';
 import { ParamSet, DEFAULT_PARAMS } from '../optimization/optimizationTypes';
+import {
+  getBacktestStateFilePath,
+  loadBacktestState,
+  saveBacktestState,
+} from './backtestStateStore';
 
 // ─── In-memory state ───────────────────────────────────────────────────────
 
 import { ProcessedMarketState } from '../models/ProcessedMarketState';
 
-let state: BacktestState = { status: 'idle' };
+export interface BacktestPersistenceMeta {
+  stateFilePath: string;
+  loadedFromDisk: boolean;
+  lastLoadedAt: string | null;
+  lastSavedAt: string | null;
+  lastLoadError: string | null;
+}
+
+const loaded = loadBacktestState();
+let state: BacktestState = loaded.state;
 let lastReplayStates: ProcessedMarketState[] = [];
+const persistenceMeta: BacktestPersistenceMeta = {
+  stateFilePath: getBacktestStateFilePath(),
+  loadedFromDisk: loaded.loadedFromDisk,
+  lastLoadedAt: new Date().toISOString(),
+  lastSavedAt: null,
+  lastLoadError: loaded.loadError,
+};
+
+function setBacktestState(next: BacktestState, persist = false): void {
+  state = next;
+  if (!persist) return;
+  try {
+    saveBacktestState(state);
+    persistenceMeta.lastSavedAt = new Date().toISOString();
+  } catch (err: any) {
+    console.error('[VORTEX] Failed to persist backtest state:', err);
+  }
+}
 
 export function getLastReplayStates(): ProcessedMarketState[] {
   return lastReplayStates;
@@ -39,6 +71,10 @@ export function getBacktestState(): BacktestState {
 
 export function getBacktestResult(): BacktestResult | null {
   return state.result ?? null;
+}
+
+export function getBacktestPersistenceMeta(): BacktestPersistenceMeta {
+  return { ...persistenceMeta };
 }
 
 // ─── Runner ────────────────────────────────────────────────────────────────
@@ -55,11 +91,11 @@ export async function startBacktest(
   const runId = `bt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
   // Mark running immediately (synchronous)
-  state = { status: 'running', progress: 0 };
+  setBacktestState({ status: 'running', progress: 0 }, false);
 
   // Execute async — result flows into state when done
   executeBacktest(runId, config, params).catch(err => {
-    state = { status: 'error', error: String(err?.message ?? err) };
+    setBacktestState({ status: 'error', error: String(err?.message ?? err) }, true);
   });
 
   return runId;
@@ -71,7 +107,7 @@ async function executeBacktest(runId: string, config: BacktestConfig, params: Pa
 
   try {
     // ── Step 1: Fetch candles ────────────────────────────────────────────
-    state = { status: 'running', progress: 5 };
+    setBacktestState({ status: 'running', progress: 5 }, false);
     const candles = await fetchHistoricalCandles({
       symbol:   config.symbol,
       interval: config.interval,
@@ -79,11 +115,11 @@ async function executeBacktest(runId: string, config: BacktestConfig, params: Pa
     });
 
     // ── Step 2: Build replay states (with Phase 7A diagnostic extensions) ─
-    state = { status: 'running', progress: 20 };
+    setBacktestState({ status: 'running', progress: 20 }, false);
     const { states: replayStates, extensions } = buildReplayStates(candles, true);
 
     // ── Step 3: Simulate ─────────────────────────────────────────────────
-    state = { status: 'running', progress: 40 };
+    setBacktestState({ status: 'running', progress: 40 }, false);
 
     let allTrades: BacktestTrade[];
     let equityCurve: number[];
@@ -109,7 +145,7 @@ async function executeBacktest(runId: string, config: BacktestConfig, params: Pa
     analyzeEntryQuality(allTrades); // mutates quickStop field on each trade
 
     // ── Step 4: Metrics ──────────────────────────────────────────────────
-    state = { status: 'running', progress: 85 };
+    setBacktestState({ status: 'running', progress: 85 }, false);
 
     const endTime  = new Date().toISOString();
     const duration = Date.now() - t0;
@@ -125,10 +161,10 @@ async function executeBacktest(runId: string, config: BacktestConfig, params: Pa
     );
 
     // ── Step 5: Store ────────────────────────────────────────────────────
-    state = { status: 'done', progress: 100, result };
+    setBacktestState({ status: 'done', progress: 100, result }, true);
 
   } catch (err: any) {
-    state = { status: 'error', error: String(err?.message ?? err) };
+    setBacktestState({ status: 'error', error: String(err?.message ?? err) }, true);
     throw err;
   }
 }

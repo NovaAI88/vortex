@@ -11,11 +11,13 @@
 - Injects a fixed deterministic event stream (see test) through the full VORTEX pipeline: Ingestion → Processing → Intelligence → Decision → Risk → Execution → Portfolio
 - Validates correct propagation, duplication guards, and event lineage at every architectural boundary
 - Verifies event emissions for PositionSnapshot, PortfolioSnapshot, ExecutionResult as expected
+- Uses persisted backtest verification state (`backend/data/backtest-state.json`) so validation baselines can survive backend restarts
 
 ## Interpretation
 
 - Look for PASSED output on all asserts
 - Failures indicate drift, pipeline breakage, or new requirements
+- Check `GET /api/backtest/status` and inspect `persistence` metadata to confirm state source/path and last successful save/load
 
 ## Constraints
 
