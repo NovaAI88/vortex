@@ -1,7 +1,48 @@
 import React, { useState } from 'react';
 import PageHeaderBar from '../components/ui/PageHeaderBar';
 import SectionCard from '../components/ui/SectionCard';
-import { runBacktest, fetchBacktestResults } from '../api/backtestApi';
+import { runBacktest, fetchBacktestResults, waitForBacktestDone } from '../api/backtestApi';
+
+type BacktestRow = {
+  variant: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  maxDrawdown?: number;
+};
+
+function toRows(payload: any): BacktestRow[] {
+  if (Array.isArray(payload?.results)) return payload.results;
+  const result = payload?.result ?? payload;
+  if (!result || !result.summary) return [];
+
+  const rows: BacktestRow[] = [];
+  const summary = result.summary;
+  rows.push({
+    variant: 'ALL',
+    trades: Number(summary.totalTrades || 0),
+    wins: Number(summary.wins || 0),
+    losses: Number(summary.losses || 0),
+    pnl: Number(summary.totalPnL || 0),
+    maxDrawdown: typeof result.maxDrawdown === 'number' ? result.maxDrawdown : undefined,
+  });
+
+  if (Array.isArray(result.byStrategy)) {
+    result.byStrategy.forEach((entry: any) => {
+      const metrics = entry?.metrics;
+      if (!metrics) return;
+      rows.push({
+        variant: String(entry?.strategyId || 'strategy'),
+        trades: Number(metrics.totalTrades || 0),
+        wins: Number(metrics.wins || 0),
+        losses: Number(metrics.losses || 0),
+        pnl: Number(metrics.totalPnL || 0),
+      });
+    });
+  }
+  return rows;
+}
 
 export default function BacktestPage() {
   const [loading, setLoading] = useState(false);
@@ -14,8 +55,13 @@ export default function BacktestPage() {
     setError(null);
     try {
       await runBacktest(['v1', 'v2', 'v3']);
+      await waitForBacktestDone();
       const data = await fetchBacktestResults();
-      setResults(Array.isArray(data?.results) ? data.results : []);
+      const rows = toRows(data);
+      setResults(rows);
+      if (!rows.length) {
+        setError('Backtest completed but returned no tabular results');
+      }
       setLastRunAt(new Date().toISOString());
     } catch (e: any) {
       setResults([]);

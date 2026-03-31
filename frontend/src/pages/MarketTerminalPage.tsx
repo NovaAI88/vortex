@@ -4,6 +4,7 @@ import PageHeaderBar from '../components/ui/PageHeaderBar';
 import KpiStrip from '../components/ui/KpiStrip';
 import KpiCard from '../components/ui/KpiCard';
 import SectionCard from '../components/ui/SectionCard';
+import MarketCards from '../components/MarketCards';
 
 const fmt = (v: any) => (typeof v === 'number' && Number.isFinite(v) ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—');
 
@@ -63,6 +64,10 @@ const MarketTerminalPage: React.FC = () => {
         activeSymbol={activeSymbol}
         timestamp={status?.timestamp}
       />
+
+      <div className="ui-card" style={{ marginTop: 10, padding: 10 }}>
+        <MarketCards />
+      </div>
 
       <KpiStrip>
         <KpiCard label="Latest Price" value={latestPrice !== null ? fmt(latestPrice) : 'No live backend data'} />

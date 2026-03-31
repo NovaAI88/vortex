@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:3000';
+import { API_BASE } from './config';
 
 export async function fetchEnginePanelState() {
   const resp = await fetch(`${API_BASE}/api/engine/state`);

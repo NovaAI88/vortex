@@ -1,23 +1,14 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { API_BASE } from '../api/config';
 
 type MarketCardItem = {
   symbol: string;
   price: number;
-  change24h: number;
+  changePct: number;
   trend: 'Bullish' | 'Bearish' | 'Sideways';
   momentum: 'Strong' | 'Moderate' | 'Weak';
+  source: 'live' | 'fallback' | 'unavailable';
 };
-
-// Safe demo data for multi-symbol view.
-// Replace this with backend data later without changing render logic.
-const DEMO_MARKET_DATA: MarketCardItem[] = [
-  { symbol: 'BTCUSDT', price: 68342.55, change24h: 2.8, trend: 'Bullish', momentum: 'Strong' },
-  { symbol: 'ETHUSDT', price: 3642.12, change24h: 1.4, trend: 'Bullish', momentum: 'Moderate' },
-  { symbol: 'SOLUSDT', price: 178.91, change24h: 3.9, trend: 'Bullish', momentum: 'Strong' },
-  { symbol: 'AVAXUSDT', price: 41.27, change24h: -1.2, trend: 'Sideways', momentum: 'Weak' },
-  { symbol: 'DOGEUSDT', price: 0.1824, change24h: 0.9, trend: 'Sideways', momentum: 'Moderate' },
-  { symbol: 'LINKUSDT', price: 19.84, change24h: -0.6, trend: 'Bearish', momentum: 'Weak' },
-];
 
 const formatPrice = (price: number) => {
   if (price < 1) return price.toFixed(4);
@@ -37,18 +28,58 @@ const pillStyle = (label: string) => ({
 });
 
 const MarketCards: React.FC = () => {
-  const marketData = useMemo(() => DEMO_MARKET_DATA, []);
+  const [marketData, setMarketData] = useState<MarketCardItem[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const resp = await fetch(`${API_BASE}/api/market/price-history`);
+        if (!resp.ok) throw new Error('Market history unavailable');
+        const raw = await resp.json();
+        const points = Array.isArray(raw) ? raw : [];
+        const first = points[0];
+        const last = points[points.length - 1];
+        const firstPrice = Number(first?.price);
+        const lastPrice = Number(last?.price);
+        const pct = Number.isFinite(firstPrice) && firstPrice > 0 && Number.isFinite(lastPrice)
+          ? ((lastPrice - firstPrice) / firstPrice) * 100
+          : 0;
+        const source = (last?.source === 'live' ? 'live' : points.length ? 'fallback' : 'unavailable') as MarketCardItem['source'];
+        const absPct = Math.abs(pct);
+        const trend: MarketCardItem['trend'] = pct > 0.15 ? 'Bullish' : pct < -0.15 ? 'Bearish' : 'Sideways';
+        const momentum: MarketCardItem['momentum'] = absPct > 1.2 ? 'Strong' : absPct > 0.4 ? 'Moderate' : 'Weak';
+        const next = Number.isFinite(lastPrice)
+          ? [{ symbol: 'BTCUSDT', price: lastPrice, changePct: pct, trend, momentum, source }]
+          : [{ symbol: 'BTCUSDT', price: 0, changePct: 0, trend: 'Sideways', momentum: 'Weak', source: 'unavailable' }];
+        if (mounted) setMarketData(next);
+      } catch {
+        if (!mounted) return;
+        setMarketData([{ symbol: 'BTCUSDT', price: 0, changePct: 0, trend: 'Sideways', momentum: 'Weak', source: 'unavailable' }]);
+      }
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => { mounted = false; clearInterval(timer); };
+  }, []);
+
+  const hasLive = useMemo(() => marketData.some((x) => x.source === 'live'), [marketData]);
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-      gap: 10,
-      marginBottom: 6,
-      alignItems: 'stretch',
-    }}>
+    <div>
+      <div style={{ fontSize: 12, color: '#a8bbdb', marginBottom: 8 }}>
+        Market cards source: {hasLive ? 'live backend feed' : 'backend unavailable or fallback-only'}
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: 10,
+        marginBottom: 6,
+        alignItems: 'stretch',
+      }}>
       {marketData.map((item) => {
-        const positive = item.change24h >= 0;
+        const positive = item.changePct >= 0;
+        const noPrice = item.source === 'unavailable' || item.price <= 0;
         return (
           <div
             key={item.symbol}
@@ -63,9 +94,9 @@ const MarketCards: React.FC = () => {
             }}
           >
             <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '.3px', color: '#a7c6f2' }}>{item.symbol}</div>
-            <div style={{ fontWeight: 700, fontSize: 17, marginTop: 6, color: '#f4f7ff' }}>${formatPrice(item.price)}</div>
+            <div style={{ fontWeight: 700, fontSize: 17, marginTop: 6, color: '#f4f7ff' }}>{noPrice ? 'No live data' : `$${formatPrice(item.price)}`}</div>
             <div style={{ fontSize: 13, marginTop: 3, color: positive ? '#7fee82' : '#ff9f9f', fontWeight: 700 }}>
-              {positive ? '+' : ''}{item.change24h.toFixed(2)}%
+              {noPrice ? 'Unavailable' : `${positive ? '+' : ''}${item.changePct.toFixed(2)}%`}
             </div>
 
             <div style={{ display: 'flex', gap: 6, marginTop: 9, flexWrap: 'wrap' }}>
@@ -75,6 +106,7 @@ const MarketCards: React.FC = () => {
           </div>
         );
       })}
+      </div>
     </div>
   );
 };

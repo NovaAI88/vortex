@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Scatter, ScatterChart, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Scatter, CartesianGrid } from 'recharts';
+import { API_BASE } from '../api/config';
 
 function formatTs(ts: string|number) {
   try {
@@ -19,7 +20,6 @@ const ChartPanel: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const API_BASE = 'http://localhost:3000';
         const [pResp, tResp] = await Promise.all([
           fetch(`${API_BASE}/api/market/price-history`),
           fetch(`${API_BASE}/api/portfolio/paper`)
