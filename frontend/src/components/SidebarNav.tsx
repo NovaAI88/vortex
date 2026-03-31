@@ -100,6 +100,12 @@ const navGroups: NavGroup[] = [
         icon: <svg width="18" height="18" fill="none"><circle cx="9" cy="9" r="7" fill="#4cf8c7" opacity=".12"/><circle cx="9" cy="9" r="2.3" fill="#7ef2df"/></svg>,
       },
       {
+        label: 'Operator Console',
+        short: 'OPS',
+        href: '/operator',
+        icon: <svg width="18" height="18" fill="none"><rect x="3" y="3.4" width="12" height="11.2" rx="2.1" fill="#9ec5ff" opacity=".14"/><path d="M5.2 7h7.6M5.2 10h5.4" stroke="#8fd7ff" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+      },
+      {
         label: 'Backtest',
         short: 'BT',
         href: '/backtest',

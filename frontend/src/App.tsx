@@ -13,6 +13,7 @@ import AlertsPage from './pages/AlertsPage';
 import BacktestPage from './pages/BacktestPage';
 import StatusPage from './pages/StatusPage';
 import StrategyPage from './pages/StrategyPage';
+import OperatorConsolePage from './pages/OperatorConsolePage';
 import faviconAsset from './assets/logo/aether-favicon.svg';
 
 function App() {
@@ -47,6 +48,7 @@ function App() {
           <Route path="/strategy" element={<StrategyPage />} />
           <Route path="/strategies" element={<Navigate to="/strategy" replace />} />
           <Route path="/status" element={<StatusPage />} />
+          <Route path="/operator" element={<OperatorConsolePage />} />
           <Route path="/backtest" element={<BacktestPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

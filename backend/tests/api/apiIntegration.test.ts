@@ -31,4 +31,24 @@ describe('API Endpoints', () => {
     expect(res.status).toBe(200);
     expect(typeof res.body.available).toBe('boolean');
   });
+
+  it('should return aggregated operator console payload via GET /api/system/status', async () => {
+    const res = await request(app).get('/api/system/status');
+    expect(res.status).toBe(200);
+    expect(typeof res.body.systemHealth).toBe('string');
+    expect(typeof res.body.tradingAllowed).toBe('boolean');
+    expect(typeof res.body.engine?.mode).toBe('string');
+    expect(typeof res.body.operator?.tradingEnabled).toBe('boolean');
+    expect(typeof res.body.risk?.tradingAllowed).toBe('boolean');
+  });
+
+  it('should apply operator start/pause controls through operator endpoints', async () => {
+    const paused = await request(app).post('/api/operator/pause');
+    expect(paused.status).toBe(200);
+    expect(paused.body.tradingEnabled).toBe(false);
+
+    const started = await request(app).post('/api/operator/start');
+    expect(started.status).toBe(200);
+    expect(started.body.tradingEnabled).toBe(true);
+  });
 });

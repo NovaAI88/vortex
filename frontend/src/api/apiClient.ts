@@ -62,6 +62,12 @@ export async function fetchRuntimeState() {
   return resp.json();
 }
 
+export async function fetchSystemStatus() {
+  const resp = await fetch(`${API_BASE}/api/system/status`);
+  if (!resp.ok) throw new Error('Failed to fetch system status');
+  return resp.json();
+}
+
 export async function fetchPipelineTrace() {
   const resp = await fetch(`${API_BASE}/api/pipeline/trace`);
   if (!resp.ok) throw new Error('Failed to fetch pipeline trace');

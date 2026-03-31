@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchStatus, fetchPositions, fetchPortfolio } from '../src/api/apiClient';
+import { fetchStatus, fetchPositions, fetchPortfolio, fetchSystemStatus } from '../src/api/apiClient';
 
 beforeEach(() => {
   global.fetch = vi.fn((url: string) => Promise.resolve({ ok: true, json: () => Promise.resolve({ test: url }) } as Response)) as any;
@@ -19,5 +19,10 @@ describe('apiClient', () => {
   it('fetchPortfolio calls /api/portfolio', async () => {
     const data = await fetchPortfolio();
     expect(data.test).toMatch('/api/portfolio');
+  });
+
+  it('fetchSystemStatus calls /api/system/status', async () => {
+    const data = await fetchSystemStatus();
+    expect(data.test).toMatch('/api/system/status');
   });
 });
