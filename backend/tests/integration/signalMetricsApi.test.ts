@@ -2,6 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import app from '../../src/api/index';
 import {
+  getSignalOutcomeStateFilePath,
   resetSignalOutcomeTrackerForTesting,
   trackSignal,
 } from '../../src/performance/signalOutcomeTracker';
@@ -44,11 +45,17 @@ describe('signal metrics api', () => {
     );
   });
 
-  it('GET /api/performance/signal-tracks returns 200 with shape { active: [], completed: [] }', async () => {
+  it('GET /api/performance/signal-tracks returns 200 with persisted state metadata', async () => {
     const res = await request(app).get('/api/performance/signal-tracks');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ active: [], completed: [] });
+    expect(res.body).toEqual({
+      active: [],
+      completed: [],
+      persistence: {
+        stateFile: getSignalOutcomeStateFilePath(),
+      },
+    });
   });
 
   it('returns one active track after trackSignal()', async () => {
@@ -69,5 +76,8 @@ describe('signal metrics api', () => {
     expect(res.status).toBe(200);
     expect(res.body.active).toHaveLength(1);
     expect(res.body.completed).toEqual([]);
+    expect(res.body.persistence).toEqual({
+      stateFile: getSignalOutcomeStateFilePath(),
+    });
   });
 });

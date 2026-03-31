@@ -1,8 +1,10 @@
+import fs from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   getActiveSignalTracks,
   getCompletedSignalTracks,
   getSignalMetrics,
+  getSignalOutcomeStateFilePath,
   resetSignalOutcomeTrackerForTesting,
   trackSignal,
   updateSignalOutcomesForTick,
@@ -295,5 +297,40 @@ describe('signalOutcomeTracker', () => {
   it('resetSignalOutcomeTrackerForTesting throws outside test mode', () => {
     process.env.NODE_ENV = 'production';
     expect(() => resetSignalOutcomeTrackerForTesting()).toThrow(/test-only/);
+  });
+
+  it('persists tracked signals to disk', () => {
+    trackSignal({
+      signalId: 'persist-1',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      entryPrice: 100,
+      entryTick: 0,
+      triggerMode: null,
+      confidence: 0.5,
+      rsi14AtSignal: null,
+      rangeLocationAtSignal: null,
+    });
+
+    expect(fs.existsSync(getSignalOutcomeStateFilePath())).toBe(true);
+  });
+
+  it('reset in test mode clears persisted tracker state file', () => {
+    trackSignal({
+      signalId: 'persist-2',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      entryPrice: 100,
+      entryTick: 0,
+      triggerMode: null,
+      confidence: 0.5,
+      rsi14AtSignal: null,
+      rangeLocationAtSignal: null,
+    });
+
+    const filePath = getSignalOutcomeStateFilePath();
+    expect(fs.existsSync(filePath)).toBe(true);
+    resetSignalOutcomeTrackerForTesting();
+    expect(fs.existsSync(filePath)).toBe(false);
   });
 });

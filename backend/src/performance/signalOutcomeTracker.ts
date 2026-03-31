@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 export type SignalOutcome = 'success' | 'failure' | 'timeout';
 export type TriggerMode = 'rsi_extreme' | 'context_confirmed' | null;
 
@@ -86,9 +89,114 @@ const SUCCESS_PCT = 0.005;
 const FAILURE_PCT = -0.0075;
 const TIMEOUT_TICKS = 10;
 const COMPLETED_SIGNALS_CAP = 1000;
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const DEFAULT_STATE_FILE = path.join(DATA_DIR, 'signal-outcome-state.json');
 
 const activeSignals = new Map<string, SignalTrack>();
 const completedSignals: SignalTrack[] = [];
+
+function ensureDataDir(): void {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+export function getSignalOutcomeStateFilePath(): string {
+  const envPath = process.env.SIGNAL_OUTCOME_STATE_FILE;
+  if (typeof envPath === 'string' && envPath.trim().length > 0) {
+    return path.resolve(envPath.trim());
+  }
+  return DEFAULT_STATE_FILE;
+}
+
+function cloneTrack(track: SignalTrack): SignalTrack {
+  return { ...track };
+}
+
+function persistSignalState(): void {
+  try {
+    const filePath = getSignalOutcomeStateFilePath();
+    ensureDataDir();
+    fs.writeFileSync(
+      filePath,
+      JSON.stringify(
+        {
+          activeSignals: Array.from(activeSignals.values()).map(cloneTrack),
+          completedSignals: completedSignals.map(cloneTrack).slice(-COMPLETED_SIGNALS_CAP),
+        },
+        null,
+        2,
+      ),
+      'utf8',
+    );
+  } catch {
+    // Persistence failure must not break runtime signal flow.
+  }
+}
+
+function normalizeTrack(raw: any): SignalTrack | null {
+  if (!raw || typeof raw !== 'object') return null;
+  if (typeof raw.signalId !== 'string' || raw.signalId.trim().length === 0) return null;
+  if (typeof raw.symbol !== 'string' || raw.symbol.trim().length === 0) return null;
+  if (raw.side !== 'buy' && raw.side !== 'sell') return null;
+  if (!Number.isFinite(raw.entryPrice)) return null;
+  if (!Number.isFinite(raw.entryTick)) return null;
+
+  const triggerMode: TriggerMode = raw.triggerMode === 'rsi_extreme' || raw.triggerMode === 'context_confirmed'
+    ? raw.triggerMode
+    : null;
+  const outcome: SignalOutcome | null = raw.outcome === 'success' || raw.outcome === 'failure' || raw.outcome === 'timeout'
+    ? raw.outcome
+    : null;
+
+  return {
+    signalId: raw.signalId,
+    symbol: raw.symbol,
+    side: raw.side,
+    entryPrice: Number(raw.entryPrice),
+    entryTick: Number(raw.entryTick),
+    triggerMode,
+    confidence: Number.isFinite(raw.confidence) ? Number(raw.confidence) : 0,
+    rsi14AtSignal: Number.isFinite(raw.rsi14AtSignal) ? Number(raw.rsi14AtSignal) : null,
+    rangeLocationAtSignal: Number.isFinite(raw.rangeLocationAtSignal) ? Number(raw.rangeLocationAtSignal) : null,
+    mfePct: Number.isFinite(raw.mfePct) ? Number(raw.mfePct) : 0,
+    maePct: Number.isFinite(raw.maePct) ? Number(raw.maePct) : 0,
+    lastTickSeen: Number.isFinite(raw.lastTickSeen) ? Number(raw.lastTickSeen) : Number(raw.entryTick),
+    ticksElapsed: Number.isFinite(raw.ticksElapsed) ? Number(raw.ticksElapsed) : 0,
+    outcome,
+    resolvedAtTick: Number.isFinite(raw.resolvedAtTick) ? Number(raw.resolvedAtTick) : null,
+  };
+}
+
+function hydrateSignalState(): void {
+  const filePath = getSignalOutcomeStateFilePath();
+  if (!fs.existsSync(filePath)) return;
+
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const nextActive = Array.isArray(raw?.activeSignals) ? raw.activeSignals : [];
+    const nextCompleted = Array.isArray(raw?.completedSignals) ? raw.completedSignals : [];
+
+    for (const entry of nextActive) {
+      const track = normalizeTrack(entry);
+      if (!track || track.outcome) continue;
+      activeSignals.set(track.signalId, track);
+    }
+
+    for (const entry of nextCompleted) {
+      const track = normalizeTrack(entry);
+      if (!track || !track.outcome) continue;
+      completedSignals.push(track);
+    }
+
+    if (completedSignals.length > COMPLETED_SIGNALS_CAP) {
+      completedSignals.splice(0, completedSignals.length - COMPLETED_SIGNALS_CAP);
+    }
+  } catch {
+    activeSignals.clear();
+    completedSignals.length = 0;
+  }
+}
+
+hydrateSignalState();
 
 function pctForSide(side: 'buy' | 'sell', entryPrice: number, price: number): number {
   return side === 'buy'
@@ -132,6 +240,7 @@ export function trackSignal(input: TrackSignalInput): void {
     outcome: null,
     resolvedAtTick: null,
   });
+  persistSignalState();
 }
 
 export function updateSignalOutcomesForTick(input: TickUpdateInput): void {
@@ -170,6 +279,8 @@ export function updateSignalOutcomesForTick(input: TickUpdateInput): void {
       completedSignals.splice(0, completedSignals.length - COMPLETED_SIGNALS_CAP);
     }
   }
+
+  persistSignalState();
 }
 
 export function getSignalMetrics(): SignalMetrics {
@@ -271,11 +382,11 @@ export function getSignalMetrics(): SignalMetrics {
 }
 
 export function getActiveSignalTracks(): SignalTrack[] {
-  return Array.from(activeSignals.values()).map(x => ({ ...x }));
+  return Array.from(activeSignals.values()).map(cloneTrack);
 }
 
 export function getCompletedSignalTracks(): SignalTrack[] {
-  return completedSignals.map(x => ({ ...x }));
+  return completedSignals.map(cloneTrack);
 }
 
 export function resetSignalOutcomeTrackerForTesting(): void {
@@ -285,4 +396,7 @@ export function resetSignalOutcomeTrackerForTesting(): void {
 
   activeSignals.clear();
   completedSignals.length = 0;
+
+  const filePath = getSignalOutcomeStateFilePath();
+  if (fs.existsSync(filePath)) fs.rmSync(filePath, { force: true });
 }
