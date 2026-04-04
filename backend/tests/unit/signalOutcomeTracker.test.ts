@@ -5,7 +5,9 @@ import {
   getCompletedSignalTracks,
   getSignalMetrics,
   getSignalOutcomeStateFilePath,
+  getSignalVerificationSnapshot,
   resetSignalOutcomeTrackerForTesting,
+  reloadSignalOutcomeTrackerFromPersistence,
   trackSignal,
   updateSignalOutcomesForTick,
 } from '../../src/performance/signalOutcomeTracker';
@@ -332,5 +334,125 @@ describe('signalOutcomeTracker', () => {
     expect(fs.existsSync(filePath)).toBe(true);
     resetSignalOutcomeTrackerForTesting();
     expect(fs.existsSync(filePath)).toBe(false);
+  });
+
+  it('reloads persisted active and completed tracks from disk', () => {
+    trackSignal({
+      signalId: 'reload-active',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      entryPrice: 100,
+      entryTick: 1,
+      triggerMode: 'rsi_extreme',
+      confidence: 0.61,
+      rsi14AtSignal: 31,
+      rangeLocationAtSignal: 0.09,
+    });
+
+    trackSignal({
+      signalId: 'reload-completed',
+      symbol: 'ETHUSDT',
+      side: 'sell',
+      entryPrice: 200,
+      entryTick: 2,
+      triggerMode: 'context_confirmed',
+      confidence: 0.77,
+      rsi14AtSignal: 68,
+      rangeLocationAtSignal: 0.91,
+    });
+
+    updateSignalOutcomesForTick({ symbol: 'ETHUSDT', price: 199, tickIndex: 3 });
+
+    const filePath = getSignalOutcomeStateFilePath();
+    const persistedState = fs.readFileSync(filePath, 'utf8');
+    expect(fs.existsSync(filePath)).toBe(true);
+
+    resetSignalOutcomeTrackerForTesting();
+    expect(getActiveSignalTracks()).toHaveLength(0);
+    expect(getCompletedSignalTracks()).toHaveLength(0);
+    expect(fs.existsSync(filePath)).toBe(false);
+
+    fs.writeFileSync(filePath, persistedState, 'utf8');
+
+    reloadSignalOutcomeTrackerFromPersistence();
+
+    expect(getActiveSignalTracks()).toEqual([
+      expect.objectContaining({
+        signalId: 'reload-active',
+        outcome: null,
+      }),
+    ]);
+    expect(getCompletedSignalTracks()).toEqual([
+      expect.objectContaining({
+        signalId: 'reload-completed',
+        outcome: 'success',
+      }),
+    ]);
+  });
+
+  it('builds filtered verification snapshots for inspection', () => {
+    trackSignal({
+      signalId: 'verify-rsi',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      entryPrice: 100,
+      entryTick: 0,
+      triggerMode: 'rsi_extreme',
+      confidence: 0.82,
+      rsi14AtSignal: 29,
+      rangeLocationAtSignal: 0.04,
+    });
+
+    trackSignal({
+      signalId: 'verify-context',
+      symbol: 'ETHUSDT',
+      side: 'sell',
+      entryPrice: 100,
+      entryTick: 0,
+      triggerMode: 'context_confirmed',
+      confidence: 0.73,
+      rsi14AtSignal: 71,
+      rangeLocationAtSignal: 0.94,
+    });
+
+    updateSignalOutcomesForTick({ symbol: 'ETHUSDT', price: 99.4, tickIndex: 1 });
+
+    const snapshot = getSignalVerificationSnapshot({
+      triggerMode: 'context_confirmed',
+      status: 'completed',
+      limit: 10,
+    });
+
+    expect(snapshot.filters).toEqual({
+      triggerMode: 'context_confirmed',
+      status: 'completed',
+      limit: 10,
+    });
+    expect(snapshot.summary).toEqual({
+      active: 0,
+      completed: 1,
+      persisted: 1,
+      byOutcome: {
+        success: 1,
+        failure: 0,
+        timeout: 0,
+      },
+      byTriggerMode: {
+        rsi_extreme: 0,
+        context_confirmed: 1,
+        unknown: 0,
+      },
+    });
+    expect(snapshot.active).toEqual([]);
+    expect(snapshot.completed).toEqual([
+      expect.objectContaining({
+        signalId: 'verify-context',
+        outcome: 'success',
+      }),
+    ]);
+    expect(snapshot.persistence).toEqual({
+      stateFile: getSignalOutcomeStateFilePath(),
+      exists: true,
+    });
   });
 });

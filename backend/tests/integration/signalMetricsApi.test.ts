@@ -4,6 +4,7 @@ import app from '../../src/api/index';
 import {
   getSignalOutcomeStateFilePath,
   resetSignalOutcomeTrackerForTesting,
+  updateSignalOutcomesForTick,
   trackSignal,
 } from '../../src/performance/signalOutcomeTracker';
 
@@ -78,6 +79,74 @@ describe('signal metrics api', () => {
     expect(res.body.completed).toEqual([]);
     expect(res.body.persistence).toEqual({
       stateFile: getSignalOutcomeStateFilePath(),
+    });
+  });
+
+  it('GET /api/performance/signal-verification returns filtered completed verification data', async () => {
+    trackSignal({
+      signalId: 'sig-rsi-active',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      entryPrice: 100,
+      entryTick: 1,
+      triggerMode: 'rsi_extreme',
+      confidence: 0.83,
+      rsi14AtSignal: 28,
+      rangeLocationAtSignal: 0.06,
+    });
+
+    trackSignal({
+      signalId: 'sig-context-complete',
+      symbol: 'ETHUSDT',
+      side: 'sell',
+      entryPrice: 200,
+      entryTick: 1,
+      triggerMode: 'context_confirmed',
+      confidence: 0.79,
+      rsi14AtSignal: 70,
+      rangeLocationAtSignal: 0.93,
+    });
+
+    updateSignalOutcomesForTick({ symbol: 'ETHUSDT', price: 199, tickIndex: 2 });
+
+    const res = await request(app)
+      .get('/api/performance/signal-verification')
+      .query({ triggerMode: 'context_confirmed', status: 'completed', limit: 5 });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      filters: {
+        triggerMode: 'context_confirmed',
+        status: 'completed',
+        limit: 5,
+      },
+      summary: {
+        active: 0,
+        completed: 1,
+        persisted: 1,
+        byOutcome: {
+          success: 1,
+          failure: 0,
+          timeout: 0,
+        },
+        byTriggerMode: {
+          rsi_extreme: 0,
+          context_confirmed: 1,
+          unknown: 0,
+        },
+      },
+      active: [],
+      completed: [
+        expect.objectContaining({
+          signalId: 'sig-context-complete',
+          triggerMode: 'context_confirmed',
+          outcome: 'success',
+        }),
+      ],
+      persistence: {
+        stateFile: getSignalOutcomeStateFilePath(),
+        exists: true,
+      },
     });
   });
 });

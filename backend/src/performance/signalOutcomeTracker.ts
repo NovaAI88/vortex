@@ -85,6 +85,35 @@ export interface SignalMetrics {
   };
 }
 
+export interface SignalVerificationSnapshot {
+  filters: {
+    triggerMode: 'all' | 'rsi_extreme' | 'context_confirmed' | 'unknown';
+    status: 'all' | 'active' | 'completed';
+    limit: number;
+  };
+  summary: {
+    active: number;
+    completed: number;
+    persisted: number;
+    byOutcome: {
+      success: number;
+      failure: number;
+      timeout: number;
+    };
+    byTriggerMode: {
+      rsi_extreme: number;
+      context_confirmed: number;
+      unknown: number;
+    };
+  };
+  active: SignalTrack[];
+  completed: SignalTrack[];
+  persistence: {
+    stateFile: string;
+    exists: boolean;
+  };
+}
+
 const SUCCESS_PCT = 0.005;
 const FAILURE_PCT = -0.0075;
 const TIMEOUT_TICKS = 10;
@@ -167,6 +196,9 @@ function normalizeTrack(raw: any): SignalTrack | null {
 }
 
 function hydrateSignalState(): void {
+  activeSignals.clear();
+  completedSignals.length = 0;
+
   const filePath = getSignalOutcomeStateFilePath();
   if (!fs.existsSync(filePath)) return;
 
@@ -387,6 +419,73 @@ export function getActiveSignalTracks(): SignalTrack[] {
 
 export function getCompletedSignalTracks(): SignalTrack[] {
   return completedSignals.map(cloneTrack);
+}
+
+function toVerificationTriggerMode(mode: TriggerMode): 'rsi_extreme' | 'context_confirmed' | 'unknown' {
+  return modeKey(mode);
+}
+
+function matchesTriggerMode(
+  track: SignalTrack,
+  triggerMode: 'all' | 'rsi_extreme' | 'context_confirmed' | 'unknown',
+): boolean {
+  return triggerMode === 'all' || toVerificationTriggerMode(track.triggerMode) === triggerMode;
+}
+
+export function getSignalVerificationSnapshot(options?: {
+  triggerMode?: 'all' | 'rsi_extreme' | 'context_confirmed' | 'unknown';
+  status?: 'all' | 'active' | 'completed';
+  limit?: number;
+}): SignalVerificationSnapshot {
+  const triggerMode = options?.triggerMode ?? 'all';
+  const status = options?.status ?? 'all';
+  const limit = Number.isFinite(options?.limit)
+    ? Math.max(1, Math.trunc(options?.limit as number))
+    : 50;
+
+  const filteredActive = getActiveSignalTracks().filter((track) => matchesTriggerMode(track, triggerMode));
+  const filteredCompleted = getCompletedSignalTracks().filter((track) => matchesTriggerMode(track, triggerMode));
+  const limitedCompleted = filteredCompleted.slice(-limit).reverse();
+
+  const persisted = filteredActive.length + filteredCompleted.length;
+  const summary = {
+    active: filteredActive.length,
+    completed: filteredCompleted.length,
+    persisted,
+    byOutcome: {
+      success: filteredCompleted.filter((track) => track.outcome === 'success').length,
+      failure: filteredCompleted.filter((track) => track.outcome === 'failure').length,
+      timeout: filteredCompleted.filter((track) => track.outcome === 'timeout').length,
+    },
+    byTriggerMode: {
+      rsi_extreme: 0,
+      context_confirmed: 0,
+      unknown: 0,
+    },
+  };
+
+  for (const track of [...filteredActive, ...filteredCompleted]) {
+    summary.byTriggerMode[toVerificationTriggerMode(track.triggerMode)]++;
+  }
+
+  return {
+    filters: {
+      triggerMode,
+      status,
+      limit,
+    },
+    summary,
+    active: status === 'completed' ? [] : filteredActive,
+    completed: status === 'active' ? [] : limitedCompleted,
+    persistence: {
+      stateFile: getSignalOutcomeStateFilePath(),
+      exists: fs.existsSync(getSignalOutcomeStateFilePath()),
+    },
+  };
+}
+
+export function reloadSignalOutcomeTrackerFromPersistence(): void {
+  hydrateSignalState();
 }
 
 export function resetSignalOutcomeTrackerForTesting(): void {
